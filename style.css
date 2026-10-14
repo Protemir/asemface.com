@@ -1,0 +1,190 @@
+:root {
+  color-scheme: dark;
+  --bg: #070b1a;
+  --panel: rgba(9, 13, 28, 0.82);
+  --line: rgba(255, 255, 255, 0.1);
+  --text: #eef1f6;
+  --muted: #a3abbb;
+  --accent: #ffb547;
+  --on-accent: #1a1204;
+  --sans: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono: "Cascadia Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[hidden] { display: none !important; }
+
+button { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  touch-action: none;
+}
+
+/* HUD */
+
+.hud {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+.hud p { margin: 0; }
+.hud-block { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.speed { font-size: 0.875rem; color: var(--muted); }
+.speed b { font-family: var(--mono); font-size: 1.9rem; color: var(--text); letter-spacing: -0.03em; }
+.dist { font-family: var(--mono); font-size: 1rem; }
+.hud-center { text-align: center; }
+.time {
+  font-family: var(--mono);
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: -0.04em;
+}
+.time.low { color: #ff6b5b; }
+.zone { margin-top: 4px; font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
+.hud-right { display: flex; justify-content: flex-end; gap: 8px; pointer-events: auto; }
+.icon-btn {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(9, 13, 28, 0.55);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .speed b { font-size: 1.5rem; }
+  .time { font-size: 2.1rem; }
+  .dist { font-size: 0.875rem; }
+}
+
+/* banner for countdown and checkpoints */
+
+.banner {
+  position: fixed;
+  left: 50%;
+  top: 26%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.banner.show { animation: banner 1.6s ease-out forwards; }
+.banner b { display: block; font-size: clamp(2rem, 7vw, 3.6rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.banner span { display: block; margin-top: 6px; font-family: var(--mono); font-size: 1.1rem; color: var(--accent); font-weight: 700; }
+@keyframes banner {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(0.96); }
+  12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* panels */
+
+.panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding: 26px 26px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.panel-top { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.mark { width: 34px; height: 6px; border-radius: 3px; background: var(--accent); }
+.panel h1 { margin: 0; font-size: clamp(2.6rem, 11vw, 3.6rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.panel h2 { margin: 0; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; }
+.panel p { margin: 0; }
+.tag { color: var(--muted); font-size: 1.0625rem; line-height: 1.45; }
+.keys { font-family: var(--mono); font-size: 0.8125rem; color: var(--muted); line-height: 1.5; }
+.best { font-family: var(--mono); font-size: 0.9375rem; }
+.more { font-size: 0.875rem; color: var(--muted); }
+.more:hover { color: var(--text); }
+.over-label { color: var(--muted); font-weight: 600; }
+.over-dist { font-family: var(--mono); font-size: 3rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+.record { color: var(--accent); font-weight: 800; }
+.note { min-height: 1.3em; font-size: 0.875rem; color: var(--accent); font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.langs { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+.langs button { border: 0; background: none; padding: 3px 11px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+.langs button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+
+.btn {
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s;
+}
+.btn:active { transform: translateY(1px) scale(0.98); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { background: #ffc46b; }
+
+.noscript { position: fixed; inset: 0; display: grid; place-items: center; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .banner.show { animation-duration: 1.6s; animation-timing-function: steps(1); }
+}
+
+/* link preview frame, see ?og in game.js */
+.og .panel, .og .hud { display: none !important; }
+.og-title {
+  position: fixed;
+  left: 64px;
+  top: 56px;
+  display: grid;
+  gap: 10px;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+.og-title b { font-size: 108px; font-weight: 800; letter-spacing: -0.045em; line-height: 1; }
+.og-title span { font-size: 34px; font-weight: 600; color: var(--accent); }
