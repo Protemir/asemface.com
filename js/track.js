@@ -179,13 +179,16 @@ export class Track {
   paint() {
     const m = this.map;
     const night = m.sky.night;
+    const r = rng((m.seed || 1) + 77);
     for (const seg of this.segments) {
+      const wear = r();
+      seg.patch = r() < 0.045 ? { from: -0.9 + r() * 1.2, width: 0.25 + r() * 0.4 } : null;
       const light = Math.floor(seg.i / RUMBLE) % 2 === 0;
       const ground = m.ground[Math.max(0, seg.zone)] || m.ground[0];
       const k = seg.lit * night;
       let road = mix(m.road[light ? 0 : 1], '#e9b36d', k * 0.2);
       let grass = mix(ground[light ? 0 : 1], '#e9b36d', k * 0.12);
-      let rumble = light ? mix(m.rumble[0], '#ffe2b0', k * 0.3) : mix(m.rumble[1], '#e06a50', k * 0.25);
+      let rumble = light ? mix(m.rumble[0], '#ffe2b0', k * 0.3) : mix(m.rumble[1], '#ffe2b0', k * 0.28);
       let lane = light ? mix(m.lane, '#fff0d0', k * 0.4) : null;
       if (m.lanes === 2 && m.solidCenter) lane = mix(m.lane, '#fff0d0', k * 0.3);
       if (seg.tunnel) {
@@ -195,7 +198,11 @@ export class Track {
         rumble = mix(rumble, '#05070c', dim);
         if (lane) lane = mix(lane, '#05070c', dim * 0.6);
       }
-      seg.color = { road, grass, rumble, lane };
+      // asphalt and ground are never perfectly even
+      road = mix(road, '#000000', wear * 0.05);
+      grass = mix(grass, wear > 0.5 ? '#ffffff' : '#000000', Math.abs(wear - 0.5) * 0.05);
+      const edge = seg.tunnel ? mix(m.lane, '#05070c', 0.4) : mix(m.lane, '#fff0d0', k * 0.3);
+      seg.color = { road, grass, rumble, lane, edge };
     }
   }
 
@@ -222,6 +229,7 @@ export class Track {
         rel: null,
         friend: true,
         name: f.name,
+        model: f.model,
         travel: segIndex * SEG,
       };
       this.segments[segIndex].cars.push(car);

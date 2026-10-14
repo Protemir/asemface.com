@@ -4,7 +4,7 @@ import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk } from './audio.js';
+import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 
@@ -30,7 +30,8 @@ const saveProgress = () => store.set('asem.progress', progress);
 
 const totalStars = () => CHAPTERS.reduce((a, ch, i) => a + (progress.stars[i] || 0), 0);
 const chapterOpen = (i) => i === 0 || (progress.stars[i - 1] || 0) > 0;
-const mapOpen = (id) => id === 'city' || CHAPTERS.some((ch, i) => ch.map === id && chapterOpen(i));
+// free ride lets you pick any map; only the story goes in order
+const mapOpen = () => true;
 const carOpen = (car) => totalStars() >= car.stars;
 const carColor = (car) => progress.paint[car.id] || car.color;
 const currentCar = () => {
@@ -175,7 +176,13 @@ function update(dt) {
   const startPos = g.position;
 
   friendsAI(T, dt);
+  if (hornCool > 0) hornCool -= dt;
   for (const c of T.cars) {
+    if (c.yieldTo != null) {
+      const d = c.yieldTo - c.offset;
+      c.offset += Math.sign(d) * Math.min(Math.abs(d), dt * 1.2);
+      if (Math.abs(d) < 0.01) c.yieldTo = null;
+    }
     const before = T.segAt(c.z);
     c.z = wrap(c.z + dt * c.speed, T.length);
     c.percent = (c.z % SEG) / SEG;
@@ -263,7 +270,8 @@ function update(dt) {
         const lat = Math.abs(c.offset - g.playerX);
         if (c.friend) {
           g.nitro = Math.min(1, g.nitro + 0.1);
-          toast(t('friendBehind', { name: L(c.name) }));
+          const line = say(c, 'tauntBehind');
+          toast(`${L(c.name)}: ${line}`);
           beep(990, 0.1, 'triangle', 0.08);
         } else if (lat < 0.72 && g.crashCool <= 0) {
           g.nitro = Math.min(1, g.nitro + (c.dir < 0 ? 0.3 : 0.22));
@@ -273,7 +281,7 @@ function update(dt) {
           g.nitro = Math.min(1, g.nitro + 0.05);
         }
       } else if (c.friend && c.rel != null && c.rel < 0 && rel >= 0 && rel < SEG * 30) {
-        toast(t('friendPasses', { name: L(c.name) }));
+        toast(`${L(c.name)}: ${say(c, 'tauntAhead')}`);
       }
       c.rel = rel;
     }
@@ -400,6 +408,52 @@ function funStuff(T, pSeg, dt) {
         s.lift = 0;
         animating.delete(s);
       }
+    }
+  }
+}
+
+function say(car, key) {
+  const lines = t(key);
+  const line = lines[Math.floor(Math.random() * lines.length)];
+  car.say = line;
+  car.sayUntil = g.time + 2;
+  return line;
+}
+
+// the horn: people jump away early, slow cars ahead move over, friends answer back
+let hornCool = 0;
+function honk() {
+  if (g.mode !== 'play' || hornCool > 0) return;
+  hornCool = 0.6;
+  horn();
+  const T = g.track;
+  const N = T.segments.length;
+  const pSeg = T.segAt(g.position + PLAYER_Z);
+  let answered = false;
+  for (let n = 1; n <= 30; n++) {
+    const seg = T.segments[(pSeg.i + n) % N];
+    for (const s of seg.sprites) {
+      if (s.def.walker && !s.dodge && Math.abs(s.offset - g.playerX) < 1.6) {
+        s.dodge = true;
+        s.t0 = g.time;
+        s.dir = s.offset > g.playerX ? 1 : -1;
+        const phrases = t('screams');
+        s.say = phrases[Math.floor(Math.random() * phrases.length)];
+        s.sayUntil = g.time + 1.4;
+        animating.add(s);
+      }
+    }
+    if (n > 14) continue;
+    for (const c of seg.cars) {
+      if (c.dir < 0 || Math.abs(c.offset - g.playerX) > 0.5) continue;
+      if (c.friend) {
+        if (!answered) toast(`${L(c.name)}: ${say(c, 'tauntHorn')}`);
+        answered = true;
+        continue;
+      }
+      // move over to a free lane, or squeeze to the shoulder on a two-lane road
+      const free = T.laneX.filter((l) => Math.abs(l - c.offset) > 0.3 && (T.lanes === 3 || l > 0));
+      c.yieldTo = free.length ? free[0] : clamp(c.offset + 0.35, -0.9, 0.9);
     }
   }
 }
@@ -538,6 +592,7 @@ function setText(key, node, value) {
 function showHud(on) {
   hud.root.hidden = !on;
   $('nitroBtn').hidden = !(on && isTouch);
+  $('hornBtn').hidden = !(on && isTouch);
   for (const k of Object.keys(cache)) delete cache[k];
 }
 function updateHud() {
@@ -844,7 +899,7 @@ function npcEntries(board) {
   if (!board.startsWith('ch')) return [];
   const ch = CHAPTERS[Number(board.slice(2))];
   const segs = getTrack(ch.map).segments.length;
-  return FRIENDS.map((f, k) => ({ name: L(f.name), value: Math.round((segs / (60 * (0.695 + k * 0.025)) + 4) * 10) / 10, color: f.color, npc: true }));
+  return FRIENDS.map((f, k) => ({ name: L(f.name), value: Math.round((segs / (60 * (0.695 + k * 0.025)) + 4) * 10) / 10, color: f.color, model: L(f.model), npc: true }));
 }
 
 function boardValue(board, v) {
@@ -861,7 +916,7 @@ function fillBoard(table, board, entries) {
     const dot = el('i', 'dot');
     dot.style.background = e.color || '#888';
     const name = el('span', 'who', e.name);
-    if (e.npc) name.append(el('small', '', t('bot')));
+    if (e.npc) name.append(el('small', '', e.model + ', ' + t('bot')));
     if (me) name.append(el('small', '', t('you')));
     li.append(el('b', 'pos', String(k + 1)), dot, name, el('span', 'val', boardValue(board, e.value)));
     table.append(li);
@@ -1131,6 +1186,10 @@ window.addEventListener('keydown', (e) => {
     syncInput();
     return;
   }
+  if (e.code === 'KeyH' && racing()) {
+    honk();
+    return;
+  }
   if (e.code === 'KeyP' || e.code === 'Escape') {
     if (g.mode === 'paused') resume();
     else if (racing()) pause();
@@ -1173,6 +1232,10 @@ for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
     syncInput();
   });
 }
+$('hornBtn').addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  honk();
+});
 window.addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseMusic(true);
@@ -1201,6 +1264,7 @@ function applyLang() {
   $('musicBtn').setAttribute('aria-label', t('musicOn'));
   $('musicBtn').setAttribute('aria-pressed', String(music.on));
   nitroBtn.setAttribute('aria-label', t('nitroBtn'));
+  $('hornBtn').textContent = t('horn');
   for (const k of Object.keys(thumbs)) delete thumbs[k];
 }
 

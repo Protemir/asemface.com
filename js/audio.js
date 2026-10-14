@@ -159,3 +159,27 @@ export function bonk(kind) {
     noise(0.06, 0.12, 3000);
   }
 }
+
+// a two-tone car horn
+export function horn() {
+  if (!sound.on || !sound.ctx) return;
+  const c = sound.ctx;
+  const t = c.currentTime;
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 1600;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.1, t + 0.02);
+  g.gain.setValueAtTime(0.1, t + 0.3);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+  f.connect(g).connect(c.destination);
+  for (const hz of [415, 523]) {
+    const o = c.createOscillator();
+    o.type = 'square';
+    o.frequency.value = hz;
+    o.connect(f);
+    o.start(t);
+    o.stop(t + 0.42);
+  }
+}

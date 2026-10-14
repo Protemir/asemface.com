@@ -45,8 +45,8 @@ export const MAPS = [
     skyline: { color: '#0d1322', windows: true },
     ground: [['#1f232c', '#1b1f27'], ['#16291e', '#13241a'], ['#182a1f', '#15251b'], ['#1f232c', '#1b1f27']],
     road: ['#3b404c', '#363b46'],
-    rumble: ['#c9ced8', '#a8343a'],
-    lane: '#cfd4dc',
+    rumble: ['#8f949c', '#878c94'],
+    lane: '#d7dbe1',
     weather: null,
     zones: [
       { name: { ru: 'Проспект Абая', en: 'Abay Avenue' }, gate: { ru: 'ПРОСПЕКТ АБАЯ', en: 'ABAY AVENUE' } },
@@ -123,7 +123,7 @@ export const MAPS = [
     ],
     ground: [['#6c7789', '#647083'], ['#677284', '#5f6a7c'], ['#78839a', '#707b92'], ['#6c7789', '#647083']],
     road: ['#34383f', '#30343b'],
-    rumble: ['#c9ced8', '#4a4f5a'],
+    rumble: ['#7d8594', '#768090'],
     lane: '#d6dae0',
     weather: { snow: 170 },
     zones: [
@@ -197,7 +197,7 @@ export const MAPS = [
     ],
     ground: [['#d9d3e6', '#cfc9de'], ['#ddd6e8', '#d2cce0'], ['#e6dfec', '#ddd6e5']],
     road: ['#4a4a5a', '#45455a'],
-    rumble: ['#eef0f6', '#b04a5a'],
+    rumble: ['#b9b6c8', '#b1aec1'],
     lane: '#f2f0f6',
     weather: { snow: 55 },
     zones: [
@@ -267,8 +267,8 @@ export const MAPS = [
     water: { top: '#9a5a74', bottom: '#f2a26a', glint: '#ffe0a0' },
     ground: [['#8c6f45', '#836840'], ['#957548', '#8b6c42'], ['#a3845a', '#9a7c53']],
     road: ['#4a4248', '#453e44'],
-    rumble: ['#e6e1d6', '#9c4b3a'],
-    lane: '#f2d36b',
+    rumble: ['#7d6e57', '#76684f'],
+    lane: '#e9e6dc',
     weather: null,
     zones: [
       { name: { ru: 'Трасса на Капчагай', en: 'Kapchagay highway' }, gate: { ru: 'ТРАССА', en: 'HIGHWAY' } },
@@ -336,7 +336,7 @@ export const MAPS = [
     ],
     ground: [['#c98c5c', '#bf8253'], ['#c4845a', '#ba7a50'], ['#7c8a4a', '#738244']],
     road: ['#5a4b46', '#544641'],
-    rumble: ['#efe7dc', '#b0472f'],
+    rumble: ['#a8774f', '#9f7049'],
     lane: '#f4f1ea',
     weather: null,
     zones: [
@@ -447,11 +447,11 @@ export const CHAPTERS = [
 
 // Asem's friends: they race along in every run, with their names over the cars
 export const FRIENDS = [
-  { name: { ru: 'Даурито', en: 'Daurito' }, kind: 'sport', color: '#18a39a' },
-  { name: { ru: 'Орито', en: 'Orito' }, kind: 'hatch', color: '#f08a24' },
-  { name: { ru: 'Сакито', en: 'Sakito' }, kind: 'sedan', color: '#3f6fd8' },
-  { name: { ru: 'Ерито', en: 'Erito' }, kind: 'suv', color: '#eeeeee' },
-  { name: { ru: 'Тимито', en: 'Timito' }, kind: 'niva', color: '#6b8e23' },
+  { name: { ru: 'Даурито', en: 'Daurito' }, model: { ru: 'Шкода', en: 'Škoda' }, kind: 'octavia', color: '#18a39a' },
+  { name: { ru: 'Орито', en: 'Orito' }, model: { ru: 'Соренто', en: 'Sorento' }, kind: 'sorento', color: '#f08a24' },
+  { name: { ru: 'Сакито', en: 'Sakito' }, model: { ru: 'Киа', en: 'Kia' }, kind: 'kia', color: '#3f6fd8' },
+  { name: { ru: 'Ерито', en: 'Erito' }, model: { ru: 'Фольксваген', en: 'Volkswagen' }, kind: 'golf', color: '#eeeeee' },
+  { name: { ru: 'Тимито', en: 'Timito' }, model: { ru: 'Чанган', en: 'Changan' }, kind: 'changan', color: '#6b8e23' },
 ];
 
 export const CARS = [

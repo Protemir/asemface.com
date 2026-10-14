@@ -42,117 +42,226 @@ export const VEHICLES = {
   lada: { ratio: 0.64, scale: 0.96, roof: 0.06, inset: 0.17, body: 0.44, light: 'square', chrome: true },
   gelik: { ratio: 0.92, scale: 1.08, roof: 0.0, inset: 0.05, body: 0.5, spare: true },
   electric: { ratio: 0.56, scale: 1.02, roof: 0.12, inset: 0.27, body: 0.46, light: 'bar' },
+  // the friends' cars: a Kia sedan, a Kia Sorento, a Volkswagen hatch, a Skoda liftback, a Changan crossover
+  kia: { ratio: 0.6, scale: 1, roof: 0.07, inset: 0.26, body: 0.42, light: 'bar' },
+  sorento: { ratio: 0.84, scale: 1.08, roof: 0.0, inset: 0.12, body: 0.46, light: 'vertical', rails: true },
+  golf: { ratio: 0.7, scale: 0.98, roof: 0.03, inset: 0.19, body: 0.42, light: 'wide' },
+  octavia: { ratio: 0.62, scale: 1.02, roof: 0.06, inset: 0.25, body: 0.42, light: 'wide' },
+  changan: { ratio: 0.76, scale: 1.03, roof: 0.02, inset: 0.15, body: 0.45, light: 'bar', spoiler: true },
   truck: { ratio: 1.15, scale: 1.25 },
   bus: { ratio: 1.05, scale: 1.25 },
 };
+
+// lighter (amount > 0) or darker (amount < 0) version of a color
+const tint = (color, amount) => (amount >= 0 ? mix(color, '#ffffff', amount) : mix(color, '#000000', -amount));
 
 export function drawVehicle(c, x, y, w, h, kind, color, o = {}) {
   const v = VEHICLES[kind] || VEHICLES.sedan;
   const lights = o.lights ?? 1;
   if (kind === 'truck' || kind === 'bus') return drawBig(c, x, y, w, h, kind, color, o);
+  const detail = w > 24;
+  const bodyTop = y + h * v.body;
+  const bodyBottom = y + h * 0.86;
 
-  c.fillStyle = 'rgba(0,0,0,0.32)';
-  c.fillRect(x + w * 0.02, y + h * 0.9, w * 0.96, h * 0.1);
-  c.fillStyle = '#0b0d10';
-  c.fillRect(x + w * 0.07, y + h * 0.72, w * 0.17, h * 0.28);
-  c.fillRect(x + w * 0.76, y + h * 0.72, w * 0.17, h * 0.28);
-
-  // body and cabin
-  c.fillStyle = color;
-  roundRect(c, x, y + h * v.body, w, h * (0.86 - v.body), h * 0.08);
-  c.fill();
-  c.beginPath();
-  c.moveTo(x + w * 0.1, y + h * (v.body + 0.04));
-  c.lineTo(x + w * v.inset, y + h * v.roof);
-  c.lineTo(x + w * (1 - v.inset), y + h * v.roof);
-  c.lineTo(x + w * 0.9, y + h * (v.body + 0.04));
-  c.closePath();
-  c.fill();
-  c.fillStyle = 'rgba(0,0,0,0.22)';
-  c.fill();
-  // highlight along the roof line
-  c.fillStyle = 'rgba(255,255,255,0.12)';
-  c.fillRect(x + w * (v.inset + 0.02), y + h * v.roof, w * (1 - 2 * v.inset - 0.04), Math.max(1, h * 0.025));
-
-  // glass
-  const gTop = v.roof + 0.06;
-  const gBottom = v.body + 0.01;
-  const gi = v.inset + 0.04;
-  c.fillStyle = o.front ? '#2a3a52' : '#141d2c';
-  c.beginPath();
-  c.moveTo(x + w * 0.16, y + h * gBottom);
-  c.lineTo(x + w * gi, y + h * gTop);
-  c.lineTo(x + w * (1 - gi), y + h * gTop);
-  c.lineTo(x + w * 0.84, y + h * gBottom);
-  c.closePath();
-  c.fill();
-  if (o.front && w > 20) {
-    c.fillStyle = 'rgba(255,255,255,0.1)';
-    tri(c, x + w * gi, y + h * gTop, x + w * 0.45, y + h * gTop, x + w * 0.22, y + h * gBottom);
+  // a soft shadow on the asphalt
+  if (w > 6) {
+    const sg = c.createRadialGradient(x + w / 2, y + h * 0.95, w * 0.08, x + w / 2, y + h * 0.95, w * 0.62);
+    sg.addColorStop(0, 'rgba(0,0,0,0.5)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = sg;
+    c.fillRect(x - w * 0.15, y + h * 0.8, w * 1.3, h * 0.32);
   }
 
-  // a darker band across the bumper
-  c.fillStyle = 'rgba(0,0,0,0.25)';
-  c.fillRect(x, y + h * 0.74, w, h * 0.06);
+  // tyres
+  c.fillStyle = '#0c0d10';
+  roundRect(c, x + w * 0.05, y + h * 0.68, w * 0.19, h * 0.32, w * 0.035);
+  c.fill();
+  roundRect(c, x + w * 0.76, y + h * 0.68, w * 0.19, h * 0.32, w * 0.035);
+  c.fill();
+  if (detail) {
+    c.fillStyle = '#26292f';
+    c.fillRect(x + w * 0.08, y + h * 0.9, w * 0.13, h * 0.025);
+    c.fillRect(x + w * 0.79, y + h * 0.9, w * 0.13, h * 0.025);
+  }
+
+  // body: lit from above, darker towards the road
+  if (detail) {
+    const bg = c.createLinearGradient(0, bodyTop, 0, bodyBottom);
+    bg.addColorStop(0, tint(color, 0.22));
+    bg.addColorStop(0.35, color);
+    bg.addColorStop(1, tint(color, -0.4));
+    c.fillStyle = bg;
+  } else {
+    c.fillStyle = color;
+  }
+  roundRect(c, x, bodyTop, w, bodyBottom - bodyTop, h * 0.09);
+  c.fill();
+  // the flanks catch less light
+  if (detail) {
+    c.fillStyle = 'rgba(0,0,0,0.16)';
+    c.fillRect(x, bodyTop + h * 0.04, w * 0.06, bodyBottom - bodyTop - h * 0.08);
+    c.fillRect(x + w * 0.94, bodyTop + h * 0.04, w * 0.06, bodyBottom - bodyTop - h * 0.08);
+  }
+
+  // cabin
+  const roofY = y + h * v.roof;
+  c.beginPath();
+  c.moveTo(x + w * 0.1, bodyTop + h * 0.04);
+  c.lineTo(x + w * v.inset, roofY + h * 0.02);
+  c.quadraticCurveTo(x + w * 0.5, roofY - h * 0.02, x + w * (1 - v.inset), roofY + h * 0.02);
+  c.lineTo(x + w * 0.9, bodyTop + h * 0.04);
+  c.closePath();
+  if (detail) {
+    const cg = c.createLinearGradient(0, roofY, 0, bodyTop);
+    cg.addColorStop(0, tint(color, 0.08));
+    cg.addColorStop(1, tint(color, -0.28));
+    c.fillStyle = cg;
+  } else {
+    c.fillStyle = tint(color, -0.18);
+  }
+  c.fill();
+  c.fillStyle = 'rgba(255,255,255,0.18)';
+  c.fillRect(x + w * (v.inset + 0.03), roofY + h * 0.005, w * (1 - 2 * v.inset - 0.06), Math.max(1, h * 0.02));
+
+  // glass with a reflection of the sky
+  const gTop = roofY + h * 0.06;
+  const gBottom = bodyTop + h * 0.01;
+  const gi = v.inset + 0.04;
+  c.beginPath();
+  c.moveTo(x + w * 0.16, gBottom);
+  c.lineTo(x + w * gi, gTop);
+  c.lineTo(x + w * (1 - gi), gTop);
+  c.lineTo(x + w * 0.84, gBottom);
+  c.closePath();
+  if (detail) {
+    const glass = c.createLinearGradient(0, gTop, 0, gBottom);
+    glass.addColorStop(0, o.front ? '#4d6380' : mix('#3b4d66', '#121a28', lights));
+    glass.addColorStop(1, o.front ? '#1c2636' : '#0d131d');
+    c.fillStyle = glass;
+  } else {
+    c.fillStyle = o.front ? '#2a3a52' : '#141d2c';
+  }
+  c.fill();
+  if (detail) {
+    c.fillStyle = 'rgba(255,255,255,0.11)';
+    c.beginPath();
+    c.moveTo(x + w * (gi + 0.06), gTop);
+    c.lineTo(x + w * (gi + 0.2), gTop);
+    c.lineTo(x + w * 0.36, gBottom);
+    c.lineTo(x + w * 0.24, gBottom);
+    c.closePath();
+    c.fill();
+  }
+
+  // bumper
+  c.fillStyle = 'rgba(0,0,0,0.3)';
+  c.fillRect(x, y + h * 0.73, w, h * 0.06);
+  if (detail) {
+    c.fillStyle = 'rgba(255,255,255,0.08)';
+    c.fillRect(x + w * 0.02, y + h * 0.73, w * 0.96, Math.max(1, h * 0.012));
+  }
 
   if (o.front) {
-    // oncoming: headlights and grille
+    // oncoming: grille, headlights and their glare
     c.fillStyle = '#121418';
-    c.fillRect(x + w * 0.32, y + h * (v.body + 0.1), w * 0.36, h * 0.12);
-    c.fillStyle = lights > 0.3 ? '#fff6dc' : '#d9dde3';
-    c.fillRect(x + w * 0.05, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
-    c.fillRect(x + w * 0.75, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
-    if (lights > 0.3 && w > 6) {
-      glow(c, x + w * 0.15, y + h * (v.body + 0.14), w * 0.5, `rgba(255,240,200,${0.55 * lights})`);
-      glow(c, x + w * 0.85, y + h * (v.body + 0.14), w * 0.5, `rgba(255,240,200,${0.55 * lights})`);
+    roundRect(c, x + w * 0.3, bodyTop + h * 0.09, w * 0.4, h * 0.13, h * 0.03);
+    c.fill();
+    const lit = lights > 0.3;
+    c.fillStyle = lit ? '#fff7e2' : '#dfe3e8';
+    roundRect(c, x + w * 0.05, bodyTop + h * 0.09, w * 0.21, h * 0.09, h * 0.03);
+    c.fill();
+    roundRect(c, x + w * 0.74, bodyTop + h * 0.09, w * 0.21, h * 0.09, h * 0.03);
+    c.fill();
+    if (lit && w > 6) {
+      glow(c, x + w * 0.15, bodyTop + h * 0.13, w * 0.6, `rgba(255,240,205,${0.6 * lights})`);
+      glow(c, x + w * 0.85, bodyTop + h * 0.13, w * 0.6, `rgba(255,240,205,${0.6 * lights})`);
     }
+    return;
+  }
+
+  // taillights: a dim lens with a bright core, glowing at night or when braking
+  const on = o.braking ? 1 : 0;
+  const lamp = (lx, ly, lw, lh) => {
+    c.fillStyle = on ? '#ff3b30' : '#a3161c';
+    c.fillRect(lx, ly, lw, lh);
+    if (detail) {
+      c.fillStyle = on ? '#ffd2c8' : 'rgba(255,120,110,0.55)';
+      c.fillRect(lx + lw * 0.2, ly + lh * 0.3, lw * 0.6, Math.max(1, lh * 0.35));
+    }
+    if ((lights > 0.3 || on) && w > 12) glow(c, lx + lw / 2, ly + lh / 2, Math.max(lw, lh) * (on ? 1.6 : 1.1), on ? 'rgba(255,50,40,0.45)' : `rgba(255,40,40,${0.25 * lights})`);
+  };
+  const ly = bodyTop + h * 0.09;
+  if (v.light === 'bar') lamp(x + w * 0.04, bodyTop + h * 0.1, w * 0.92, h * 0.06);
+  else if (v.light === 'vertical') {
+    lamp(x + w * 0.02, bodyTop - h * 0.02, w * 0.09, h * 0.24);
+    lamp(x + w * 0.89, bodyTop - h * 0.02, w * 0.09, h * 0.24);
+  } else if (v.light === 'wide') {
+    lamp(x + w * 0.03, ly, w * 0.26, h * 0.08);
+    lamp(x + w * 0.71, ly, w * 0.26, h * 0.08);
+  } else if (v.light === 'square') {
+    lamp(x + w * 0.03, bodyTop + h * 0.08, w * 0.22, h * 0.14);
+    lamp(x + w * 0.75, bodyTop + h * 0.08, w * 0.22, h * 0.14);
+    c.fillStyle = '#e8a33d';
+    c.fillRect(x + w * 0.03, bodyTop + h * 0.08, w * 0.07, h * 0.14);
+    c.fillRect(x + w * 0.9, bodyTop + h * 0.08, w * 0.07, h * 0.14);
   } else {
-    const on = o.braking ? 1 : 0;
-    if (w > 18 && (lights > 0.3 || on)) {
-      c.fillStyle = on ? 'rgba(255,60,50,0.35)' : `rgba(255,40,40,${0.18 * lights})`;
-      c.fillRect(x - w * 0.03, y + h * (v.body + 0.06), w * 0.3, h * 0.2);
-      c.fillRect(x + w * 0.73, y + h * (v.body + 0.06), w * 0.3, h * 0.2);
+    lamp(x + w * 0.03, ly, w * 0.2, h * 0.09);
+    lamp(x + w * 0.77, ly, w * 0.2, h * 0.09);
+  }
+
+  if (v.rails && w > 14) {
+    c.fillStyle = '#2a2d33';
+    c.fillRect(x + w * (v.inset + 0.02), roofY - Math.max(1, h * 0.03), w * 0.08, Math.max(1, h * 0.03));
+    c.fillRect(x + w * (0.9 - v.inset), roofY - Math.max(1, h * 0.03), w * 0.08, Math.max(1, h * 0.03));
+  }
+  if (v.spoiler && w > 14) {
+    c.fillStyle = tint(color, -0.1);
+    c.fillRect(x + w * (v.inset - 0.02), roofY, w * (1 - 2 * v.inset + 0.04), Math.max(1, h * 0.05));
+  }
+  if (v.chrome && w > 14) {
+    c.fillStyle = '#c9ced6';
+    c.fillRect(x - w * 0.01, y + h * 0.74, w * 1.02, h * 0.05);
+  }
+  if (v.spare && w > 14) {
+    c.fillStyle = '#121418';
+    c.beginPath();
+    c.arc(x + w / 2, bodyTop + h * 0.13, w * 0.15, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.18)';
+    c.beginPath();
+    c.arc(x + w / 2, bodyTop + h * 0.13, w * 0.07, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  if (detail) {
+    // a Kazakhstan number plate: white with the blue strip on the left
+    const pw = w * 0.22;
+    const ph = h * 0.075;
+    const px = x + w / 2 - pw / 2;
+    const py = y + h * (v.spare ? 0.8 : 0.61);
+    c.fillStyle = '#eef0f3';
+    c.fillRect(px, py, pw, ph);
+    c.fillStyle = '#1f6fd1';
+    c.fillRect(px, py, pw * 0.16, ph);
+    if (w > 60) {
+      c.fillStyle = '#2a2d33';
+      for (let k = 0; k < 5; k++) c.fillRect(px + pw * (0.24 + k * 0.14), py + ph * 0.25, pw * 0.08, ph * 0.5);
     }
-    c.fillStyle = on ? '#ff4a3d' : '#b81f24';
-    if (v.light === 'bar') {
-      c.fillRect(x + w * 0.04, y + h * (v.body + 0.1), w * 0.92, h * 0.06);
-    } else if (v.light === 'square') {
-      c.fillRect(x + w * 0.03, y + h * (v.body + 0.08), w * 0.22, h * 0.14);
-      c.fillRect(x + w * 0.75, y + h * (v.body + 0.08), w * 0.22, h * 0.14);
-      c.fillStyle = '#e8a33d';
-      c.fillRect(x + w * 0.03, y + h * (v.body + 0.08), w * 0.07, h * 0.14);
-      c.fillRect(x + w * 0.9, y + h * (v.body + 0.08), w * 0.07, h * 0.14);
-    } else {
-      c.fillRect(x + w * 0.03, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
-      c.fillRect(x + w * 0.77, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
-    }
-    if (v.chrome && w > 14) {
-      c.fillStyle = '#c9ced6';
-      c.fillRect(x - w * 0.01, y + h * 0.74, w * 1.02, h * 0.05);
-    }
-    if (v.spare && w > 14) {
-      c.fillStyle = '#121418';
-      c.beginPath();
-      c.arc(x + w / 2, y + h * (v.body + 0.13), w * 0.15, 0, Math.PI * 2);
-      c.fill();
-      c.fillStyle = 'rgba(255,255,255,0.18)';
-      c.beginPath();
-      c.arc(x + w / 2, y + h * (v.body + 0.13), w * 0.07, 0, Math.PI * 2);
-      c.fill();
-    }
-    if (w > 30) {
-      c.fillStyle = '#d9dde3';
-      c.fillRect(x + w * 0.4, y + h * (v.spare ? 0.8 : 0.62), w * 0.2, h * 0.08);
-    }
-    if (o.nitro && w > 10) {
-      const fl = 0.6 + Math.random() * 0.6;
-      c.fillStyle = 'rgba(255,170,60,0.85)';
-      roundRect(c, x + w * 0.62, y + h * 0.82, w * 0.12, h * 0.1 * fl + h * 0.04, h * 0.04);
-      c.fill();
-      c.fillStyle = 'rgba(120,190,255,0.9)';
-      roundRect(c, x + w * 0.64, y + h * 0.84, w * 0.08, h * 0.05 * fl + h * 0.02, h * 0.02);
-      c.fill();
-    }
+    // exhaust
+    c.fillStyle = '#1a1b1f';
+    c.beginPath();
+    c.ellipse(x + w * 0.76, y + h * 0.83, w * 0.035, h * 0.022, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  if (o.nitro && w > 10) {
+    const fl = 0.6 + Math.random() * 0.6;
+    c.fillStyle = 'rgba(255,170,60,0.85)';
+    roundRect(c, x + w * 0.72, y + h * 0.82, w * 0.09, h * 0.1 * fl + h * 0.04, h * 0.04);
+    c.fill();
+    c.fillStyle = 'rgba(120,190,255,0.9)';
+    roundRect(c, x + w * 0.735, y + h * 0.84, w * 0.06, h * 0.05 * fl + h * 0.02, h * 0.02);
+    c.fill();
   }
 }
 
@@ -225,7 +334,22 @@ export const SPRITES = {
       c.fillRect(Math.min(px, headX), armY, Math.abs(px - headX) + poleW, armH);
       c.fillStyle = env.night > 0.3 ? '#ffd48c' : '#9aa3b3';
       c.fillRect(headX, armY + armH, headW, Math.max(1, h * 0.014));
-      if (env.night > 0.3 && w > 4) glow(c, headX + headW / 2, armY + armH * 2, w * 0.9, `rgba(255,196,120,${0.5 * env.night})`);
+      if (env.night > 0.3 && w > 4) {
+        glow(c, headX + headW / 2, armY + armH * 2, w * 0.9, `rgba(255,196,120,${0.5 * env.night})`);
+        // the cone of light falling to the ground
+        const lx = headX + headW / 2;
+        const cone = c.createLinearGradient(0, armY, 0, y + h);
+        cone.addColorStop(0, `rgba(255,205,140,${0.18 * env.night})`);
+        cone.addColorStop(1, 'rgba(255,205,140,0)');
+        c.fillStyle = cone;
+        c.beginPath();
+        c.moveTo(lx - headW * 0.4, armY + armH * 2);
+        c.lineTo(lx + headW * 0.4, armY + armH * 2);
+        c.lineTo(lx + w * 0.75, y + h);
+        c.lineTo(lx - w * 0.75, y + h);
+        c.closePath();
+        c.fill();
+      }
     },
   },
   poplar: {
@@ -271,9 +395,12 @@ export const SPRITES = {
       const tiers = [[0.0, 0.42, 0.32], [0.24, 0.66, 0.42], [0.48, 0.88, 0.5]];
       const green = mix('#2a5a3c', '#15291e', env.night);
       const snow = mix('#f4f7fb', '#c3cede', env.night);
+      const shadowSide = mix('#1d4a30', '#0f2016', env.night);
       for (const [top, bottom, half] of tiers) {
         c.fillStyle = green;
         tri(c, x + w / 2, y + h * top, x + w * (0.5 + half), y + h * bottom, x + w * (0.5 - half), y + h * bottom);
+        c.fillStyle = shadowSide;
+        tri(c, x + w / 2, y + h * top, x + w * (0.5 + half), y + h * bottom, x + w * 0.5, y + h * bottom);
         if (s.snow !== false) {
           c.fillStyle = snow;
           const k = top + (bottom - top) * 0.35;

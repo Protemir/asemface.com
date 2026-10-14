@@ -10,7 +10,7 @@ There is a story of five chapters. Asem gets a late order: hot baursaks to Shymb
 4. Kapchagay at sunset: steppe, trucks, yurts, camels, wind turbines and the lake.
 5. Charyn: red table mountains, rock pillars and the ash grove.
 
-Five friends race along in every run (Daurito, Orito, Sakito, Erito and Timito), with their names over their cars, and the HUD shows your place. Overtakes, especially close ones, fill the nitro. Free ride gives endless laps on any map you have reached, with a best distance per map. The garage has three cars that open with stars.
+Five friends race along in every run, each in their own car: Daurito in a Skoda, Orito in a Sorento, Sakito in a Kia, Erito in a Volkswagen and Timito in a Changan. Their names float over the cars, they shout at you in Kazakh when you pass them or they pass you, and the HUD shows your place. The horn (H, or the button on a phone) makes people jump away early, slow cars move over and friends answer back. Overtakes, especially close ones, fill the nitro. Free ride gives endless laps on any map you have reached, with a best distance per map. The garage has three cars that open with stars.
 
 Plain canvas and JS modules, no build step, no images, no requests. Everything you see is drawn with canvas shapes. Progress stays in localStorage.
 

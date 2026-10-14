@@ -318,7 +318,7 @@ export class Renderer {
     c.globalAlpha = 1;
   }
 
-  drawSegment(seg, lanes) {
+  drawSegment(seg, lanes, near) {
     const c = this.ctx;
     const { p1, p2, color } = seg;
     const x1 = p1.sx, y1 = p1.sy, w1 = p1.sw;
@@ -330,6 +330,39 @@ export class Renderer {
     this.poly(x1 - w1 - r1, y1, x1 - w1, y1, x2 - w2, y2, x2 - w2 - r2, y2, color.rumble);
     this.poly(x1 + w1 + r1, y1, x1 + w1, y1, x2 + w2, y2, x2 + w2 + r2, y2, color.rumble);
     this.poly(x1 - w1, y1, x1 + w1, y1, x2 + w2, y2, x2 - w2, y2, color.road);
+    if (near) {
+      // worn wheel tracks in every lane, and the odd patch of newer asphalt
+      const lw1 = (w1 * 2) / lanes;
+      const lw2 = (w2 * 2) / lanes;
+      c.beginPath();
+      for (let lane = 0; lane < lanes; lane++) {
+        const cx1 = x1 - w1 + lw1 * (lane + 0.5);
+        const cx2 = x2 - w2 + lw2 * (lane + 0.5);
+        for (const side of [-0.25, 0.25]) {
+          const a1 = cx1 + lw1 * side;
+          const a2 = cx2 + lw2 * side;
+          c.moveTo(a1 - lw1 * 0.06, y1);
+          c.lineTo(a1 + lw1 * 0.06, y1);
+          c.lineTo(a2 + lw2 * 0.06, y2);
+          c.lineTo(a2 - lw2 * 0.06, y2);
+          c.closePath();
+        }
+      }
+      c.fillStyle = 'rgba(0,0,0,0.08)';
+      c.fill();
+      if (seg.patch) {
+        const f = seg.patch.from;
+        const pw = seg.patch.width;
+        this.poly(x1 + w1 * f, y1, x1 + w1 * (f + pw), y1, x2 + w2 * (f + pw), y2, x2 + w2 * f, y2, 'rgba(0,0,0,0.12)');
+      }
+    }
+    // solid white lines along both edges of the asphalt
+    const e1 = w1 / 50;
+    const e2 = w2 / 50;
+    const in1 = w1 * 0.04;
+    const in2 = w2 * 0.04;
+    this.poly(x1 - w1 + in1, y1, x1 - w1 + in1 + e1, y1, x2 - w2 + in2 + e2, y2, x2 - w2 + in2, y2, color.edge);
+    this.poly(x1 + w1 - in1 - e1, y1, x1 + w1 - in1, y1, x2 + w2 - in2, y2, x2 + w2 - in2 - e2, y2, color.edge);
     if (color.lane) {
       const l1 = w1 / (lanes === 2 ? 40 : 32);
       const l2 = w2 / (lanes === 2 ? 40 : 32);
@@ -369,6 +402,13 @@ export class Renderer {
     const dy = y - dh;
     if (dw < 0.8 || dx > this.W || dx + dw < 0 || dy >= clipY) return;
     const c = this.ctx;
+    if (!s.lift && dw > 6 && !def.walker && s.type !== 'lamp' && s.type !== 'pole' && s.type !== 'pylon' && s.type !== 'turbine') {
+      c.globalAlpha = alpha * 0.28;
+      c.fillStyle = '#000';
+      c.beginPath();
+      c.ellipse(dx + dw / 2, y, dw * 0.42, Math.max(1, dw * 0.07), 0, 0, Math.PI * 2);
+      c.fill();
+    }
     c.globalAlpha = alpha * (s.alpha ?? 1);
     if (s.lift || s.rot) {
       // tumbling through the air: lift it up and spin it around its middle
@@ -395,31 +435,69 @@ export class Renderer {
     c.globalAlpha = seg.fog;
     const draw = () => {
       drawVehicle(c, x - dw / 2, y - dh, dw, dh, car.kind, car.color, { front: car.dir < 0, lights: env.lights });
-      if (car.name && dw > 22) this.nameTag(L(car.name), x, y - dh - dw * 0.08, dw, car.color);
+      if (car.name && dw > 22) this.nameTag(L(car.name), car.model ? L(car.model) : '', x, y - dh - dw * 0.08, dw, car.color);
+      if (car.say && env.time < car.sayUntil && dw > 14) this.bubble(car.say, x, y - dh - dw * 0.08 - clamp(dw * 0.16, 9, 22) * 1.8, dw);
     };
     if (y > seg.clip) this.withClip(seg.clip, draw);
     else draw();
     c.globalAlpha = 1;
   }
 
-  nameTag(text, x, bottom, dw, color) {
+  bubble(text, x, bottom, dw) {
     const c = this.ctx;
-    const size = clamp(dw * 0.16, 9, 22);
+    const size = clamp(dw * 0.18, 10, 26);
     c.font = `800 ${size}px ${SANS}`;
     const tw = c.measureText(text).width;
-    const pw = tw + size * 1.1;
-    const ph = size * 1.5;
-    const top = bottom - ph;
-    c.fillStyle = 'rgba(9,13,28,0.78)';
+    const bw = tw + size * 1.1;
+    const bh = size * 1.6;
+    const top = bottom - bh - size * 0.4;
+    c.fillStyle = '#ffffff';
     c.beginPath();
-    c.roundRect ? c.roundRect(x - pw / 2, top, pw, ph, ph / 2) : c.rect(x - pw / 2, top, pw, ph);
+    c.roundRect ? c.roundRect(x - bw / 2, top, bw, bh, bh / 2.2) : c.rect(x - bw / 2, top, bw, bh);
     c.fill();
-    c.fillStyle = color;
-    c.fillRect(x - pw / 2 + ph * 0.35, top + ph * 0.32, Math.max(2, size * 0.3), ph * 0.36);
-    c.fillStyle = '#f2f4f8';
+    c.beginPath();
+    c.moveTo(x - size * 0.35, top + bh - 1);
+    c.lineTo(x + size * 0.25, top + bh - 1);
+    c.lineTo(x - size * 0.1, top + bh + size * 0.45);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#16181d';
     c.textAlign = 'center';
     c.textBaseline = 'middle';
-    c.fillText(text, x + size * 0.15, top + ph / 2 + 0.5);
+    c.fillText(text, x, top + bh / 2 + 0.5);
+  }
+
+  // "Sakito Kia" over a friend's car: the name in bold, the model smaller and dimmer
+  nameTag(text, sub, x, bottom, dw, color) {
+    const c = this.ctx;
+    const size = clamp(dw * 0.16, 9, 22);
+    const small = size * 0.78;
+    c.font = `800 ${size}px ${SANS}`;
+    const tw = c.measureText(text).width;
+    c.font = `600 ${small}px ${SANS}`;
+    const sw = sub ? c.measureText(sub).width + size * 0.4 : 0;
+    const dotW = Math.max(2, size * 0.3);
+    const pw = tw + sw + size * 1.4;
+    const ph = size * 1.5;
+    const top = bottom - ph;
+    const left = x - pw / 2;
+    c.fillStyle = 'rgba(9,13,28,0.78)';
+    c.beginPath();
+    c.roundRect ? c.roundRect(left, top, pw, ph, ph / 2) : c.rect(left, top, pw, ph);
+    c.fill();
+    c.fillStyle = color;
+    c.fillRect(left + ph * 0.35, top + ph * 0.32, dotW, ph * 0.36);
+    c.textAlign = 'left';
+    c.textBaseline = 'middle';
+    const tx = left + ph * 0.35 + dotW + size * 0.35;
+    c.font = `800 ${size}px ${SANS}`;
+    c.fillStyle = '#f2f4f8';
+    c.fillText(text, tx, top + ph / 2 + 0.5);
+    if (sub) {
+      c.font = `600 ${small}px ${SANS}`;
+      c.fillStyle = 'rgba(242,244,248,0.65)';
+      c.fillText(sub, tx + tw + size * 0.4, top + ph / 2 + 0.5);
+    }
   }
 
   drawGate(seg, text) {
@@ -616,7 +694,7 @@ export class Renderer {
       x += dx;
       dx += seg.curve;
       if (seg.p1.cz <= CAM_DEPTH || seg.p2.sy >= seg.p1.sy || seg.p2.sy >= maxY) continue;
-      this.drawSegment(seg, T.lanes);
+      this.drawSegment(seg, T.lanes, n < 130);
       maxY = seg.p1.sy;
     }
 

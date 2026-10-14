@@ -165,6 +165,20 @@ button { font: inherit; color: inherit; }
   font-size: 1.2rem;
   touch-action: none;
 }
+.horn-btn {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: calc(max(22px, env(safe-area-inset-bottom)) + 76px);
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(255, 181, 71, 0.6);
+  border-radius: 50%;
+  background: rgba(9, 13, 28, 0.5);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.85rem;
+  touch-action: none;
+}
 .nitro-btn.on { background: #5fb4ff; color: #04121f; }
 
 /* panels */
