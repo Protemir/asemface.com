@@ -20,4 +20,4 @@ Code: `js/maps.js` holds the maps, chapters, friends and cars, `js/track.js` the
 
 Run it with any static server, for example `npx serve .` (modules do not load from `file://`). `?debug` exposes `window.__asem` for stepping the game by hand, `?og&map=kapchagay` renders the clean frame used for `og.png`.
 
-Made purely for fun, by [TEMIRLAB](https://temirlab.com/). Any resemblance to real traffic cops and sheep is a coincidence.
+Made by [TEMIRLAB](https://temirlab.com/) to lift your mood. All characters are fictional, and any resemblance to real traffic inspectors and sheep is coincidental.
