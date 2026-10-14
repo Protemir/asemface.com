@@ -1,4 +1,4 @@
-// Six routes around Almaty. Each map sets its sky, mountain layers, ground and
+// Seven routes: six around Almaty and Astana on New Year's Eve. Each map sets its sky, mountain layers, ground and
 // road colors, traffic, the road itself (build) and what stands along it (decorate).
 
 const CITY_COLORS = ['#4b6fa5', '#7d8590', '#2f6f5e', '#c9b458', '#8c4a3a', '#d9dde3', '#30343c', '#5b4a8a', '#a0522d', '#e8e8e8'];
@@ -502,6 +502,89 @@ export const MAPS = [
       ];
     },
   },
+  {
+    id: 'astana',
+    name: { ru: 'Новогодняя Астана', en: 'Astana on New Year\'s Eve' },
+    lanes: 3,
+    seed: 2026101507,
+    fog: 5,
+    fogColor: '#262c4a',
+    sky: {
+      night: 1,
+      stops: [[0, '#05081a'], [0.55, '#121838'], [1, '#2f2c58']],
+      stars: 0.25,
+      body: null,
+      clouds: { color: '#2a3156', alpha: 0.6, count: 9, top: 0.05, bottom: 0.4 },
+      vignette: 0.5,
+    },
+    ranges: [
+      { kind: 'hills', color: '#1c2240', height: 0.1, amp: 0.4, seed: 81, detail: 5, speed: 0.001 },
+    ],
+    skyline: { color: '#141a33', windows: true, landmarks: 'astana' },
+    ground: [['#8b94aa', '#848da3'], ['#7d869c', '#778096'], ['#7d869c', '#778096'], ['#8b94aa', '#848da3']],
+    road: ['#30343d', '#2d3139'],
+    rumble: ['#a3abba', '#9aa2b2'],
+    lane: '#dfe3ea',
+    weather: { snow: 300, wind: 0.35 },
+    zones: [
+      { name: { ru: 'Трасса из аэропорта', en: 'Airport road' }, gate: { ru: 'АЭРОПОРТ', en: 'AIRPORT' } },
+      { name: { ru: 'Проспект Мангилик Ел', en: 'Mangilik El Avenue' }, gate: { ru: 'МАНГИЛИК ЕЛ', en: 'MANGILIK EL' } },
+      { name: { ru: 'Хан Шатыр', en: 'Khan Shatyr' }, gate: { ru: 'ХАН ШАТЫР', en: 'KHAN SHATYR' } },
+      { name: { ru: 'Байтерек', en: 'Baiterek' }, gate: { ru: 'БАЙТЕРЕК', en: 'BAITEREK' } },
+    ],
+    traffic: { count: 55, oncoming: 0, min: 0.2, max: 0.42, kinds: [['sedan', 6], ['suv', 3], ['hatch', 2], ['bus', 1], ['plow', 2]], colors: CITY_COLORS },
+    fun: {
+      zones: [1, 2, 3],
+      walkers: 0.018,
+      hats: true,
+      props: [['snowman', 0.016]],
+    },
+    police: [[1, 250]],
+    holes: 0.002,
+    puddles: { kind: 'slush', rate: 0.004 },
+    ice: 7,
+    weaver: true,
+    fireworks: true,
+    build(T) {
+      T.zone().road(50, 80, 50, 0, 0).road(40, 60, 40, 2, 0).road(40, 60, 40, -1, 5).road(50, 60, 50, 0, -5);
+      T.zone().road(30, 50, 30, 3, 0).road(30, 60, 30, -3, 0).road(40, 40, 40, 2, 5);
+      T.zone().road(30, 40, 30, -4, 0).road(30, 40, 30, 4, -5).road(40, 50, 40, 0, 0);
+      T.zone().road(30, 40, 30, 3, 5).road(40, 60, 40, -2, 0).home(100, 2);
+    },
+    decorate(T, seg, r) {
+      const z = seg.zone;
+      const i = seg.i;
+      const side = r() < 0.5 ? -1 : 1;
+      if (z === 0) {
+        // the airport road: snowy steppe in a blizzard
+        if (i % 30 === 0) T.addSprite(i, 'pole', -1.3);
+        if (r() < 0.06) T.addSprite(i, 'snowbank', side * (1.25 + r() * 0.5));
+        if (r() < 0.04) T.addSprite(i, 'fir', side * (2 + r() * 4), { plain: true });
+        return;
+      }
+      // the city: lamps, lit towers, firs with garlands
+      if (i % 20 === 0) {
+        T.addSprite(i, 'lamp', -1.08);
+        T.addSprite(i + 10, 'lamp', 1.08);
+      }
+      if (i % 8 === 0) building(T, seg, r, side);
+      if (i % 12 === 6) building(T, seg, r, -side);
+      if (r() < 0.07) T.addSprite(i, 'fir', side * (1.4 + r() * 0.5));
+      if (r() < 0.04) T.addSprite(i, 'snowbank', -side * (1.25 + r() * 0.3));
+    },
+    extras(T) {
+      const s = T.zoneStart;
+      const N = T.segments.length;
+      return [
+        [s[0] + 60, 'sign', 1.25, { label: { ru: 'Астана 18 км', en: 'Astana 18 km' } }],
+        [s[1] + 30, 'billboard', -1.35, { label: { ru: 'С НОВЫМ ГОДОМ!', en: 'HAPPY NEW YEAR!' } }],
+        [s[2] + 40, 'ayaz', 2.0, { phase: 1 }],
+        [s[3] + 30, 'billboard', 1.35, { label: { ru: 'ЖАҢА ЖЫЛ', en: 'ЖАҢА ЖЫЛ' } }],
+        [N - 45, 'fir', -2.8, { w: 2600, h: 5600 }],
+        [N - 25, 'ayaz', 1.45, { phase: 2 }],
+      ];
+    },
+  },
 ];
 
 export const mapById = (id) => MAPS.find((m) => m.id === id) || MAPS[0];
@@ -571,6 +654,19 @@ export const CHAPTERS = [
     outro: {
       ru: 'Дождь кончился прямо над озером. Термос с чаем, отсыревшие баурсаки и все шестеро на одном мостике. Хороший год.',
       en: 'The rain stopped right over the lake. A thermos of tea, damp baursaks and all six of them on one little pier. A good year.',
+    },
+  },
+  {
+    map: 'astana',
+    title: { ru: 'Новый год в Астане', en: 'New Year in Astana' },
+    intro: {
+      ru: '31 декабря. Тима зовёт всех встречать Новый год у Байтерека. Минус тридцать, буран, снегоуборщики и гололёд, а до полуночи совсем немного.',
+      en: 'December 31st. Tima invites everyone to see the New Year in at Baiterek. Minus thirty, a blizzard, snowplows and black ice, and midnight is close.',
+    },
+    goal: { ru: 'Успей к Байтереку до полуночи.', en: 'Reach Baiterek before midnight.' },
+    outro: {
+      ru: 'Куранты, салют над Байтереком и шесть кружек горячего чая. Аяз ата раздаёт баурсаки, и все сходятся на одном: следующий год будет ещё лучше.',
+      en: 'The chimes, fireworks over Baiterek and six mugs of hot tea. Ayaz Ata hands out baursaks, and everyone agrees on one thing: next year will be even better.',
     },
   },
 ];

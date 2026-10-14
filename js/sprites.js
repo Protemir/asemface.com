@@ -78,6 +78,7 @@ export const VEHICLES = {
   octavia: { ratio: 0.62, scale: 1.02, roof: 0.06, inset: 0.25, body: 0.42, light: 'wide' },
   changan: { ratio: 0.76, scale: 1.03, roof: 0.02, inset: 0.15, body: 0.45, light: 'bar', spoiler: true },
   truck: { ratio: 1.15, scale: 1.25 },
+  plow: { ratio: 1.15, scale: 1.25 },
   bus: { ratio: 1.05, scale: 1.25 },
 };
 
@@ -87,7 +88,7 @@ const tint = (color, amount) => (amount >= 0 ? mix(color, '#ffffff', amount) : m
 export function drawVehicle(c, x, y, w, h, kind, color, o = {}) {
   const v = VEHICLES[kind] || VEHICLES.sedan;
   const lights = o.lights ?? 1;
-  if (kind === 'truck' || kind === 'bus') return drawBig(c, x, y, w, h, kind, color, o);
+  if (kind === 'truck' || kind === 'bus' || kind === 'plow') return drawBig(c, x, y, w, h, kind, color, o);
   const detail = w > 24;
   const bodyTop = y + h * v.body;
   const bodyBottom = y + h * 0.86;
@@ -301,7 +302,44 @@ function drawBig(c, x, y, w, h, kind, color, o) {
   c.fillStyle = '#0b0d10';
   c.fillRect(x + w * 0.06, y + h * 0.8, w * 0.16, h * 0.2);
   c.fillRect(x + w * 0.78, y + h * 0.8, w * 0.16, h * 0.2);
-  if (kind === 'truck' && !o.front) {
+  if (kind === 'plow') {
+    // an orange snowplow: striped back, a spreader throwing snow, a beacon on the roof
+    const t = o.time || 0;
+    if (w > 8 && !o.front) {
+      c.fillStyle = 'rgba(235,240,248,0.55)';
+      for (let k = 0; k < 5; k++) {
+        const p = (t * 1.6 + k / 5) % 1;
+        c.beginPath();
+        c.ellipse(x + w * (0.5 + (k % 2 ? 1 : -1) * (0.3 + p * 0.5)), y + h * (0.9 - p * 0.25), w * (0.08 + p * 0.12), h * (0.04 + p * 0.06), 0, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    c.fillStyle = '#e8772e';
+    roundRect(c, x, y + h * 0.1, w, h * 0.74, w * 0.04);
+    c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.18)';
+    c.fillRect(x, y + h * 0.48, w, h * 0.05);
+    if (o.front) {
+      c.fillStyle = '#c9ced6';
+      c.fillRect(x - w * 0.08, y + h * 0.72, w * 1.16, h * 0.16);
+    } else if (w > 10) {
+      const n = 8;
+      for (let k = 0; k < n; k++) {
+        c.fillStyle = k % 2 ? '#1d1f24' : '#f2c230';
+        c.beginPath();
+        c.moveTo(x + (w * k) / n, y + h * 0.84);
+        c.lineTo(x + (w * (k + 1)) / n, y + h * 0.84);
+        c.lineTo(x + (w * (k + 0.6)) / n, y + h * 0.76);
+        c.lineTo(x + (w * (k - 0.4)) / n, y + h * 0.76);
+        c.closePath();
+        c.fill();
+      }
+    }
+    const on = Math.sin(t * 9) > 0;
+    c.fillStyle = on ? '#ffb020' : '#8a5a10';
+    c.fillRect(x + w * 0.42, y + h * 0.02, w * 0.16, h * 0.08);
+    if (on && w > 6) glow(c, x + w * 0.5, y + h * 0.06, w * 0.7, 'rgba(255,170,40,0.45)');
+  } else if (kind === 'truck' && !o.front) {
     // cargo box seen from behind
     c.fillStyle = color;
     c.fillRect(x, y, w, h * 0.84);
@@ -1287,6 +1325,98 @@ export const SPRITES = {
       c.closePath();
       c.fill();
       if (s.say && env.time < s.sayUntil && w > 9) speech(c, s.say, cx, y - h * 0.05, w);
+    },
+  },
+
+  // a fir dressed for New Year: blinking garlands and a star; plain ones stand out in the steppe
+  fir: {
+    w: 900, h: 2000, hit: 0.35,
+    draw(c, x, y, w, h, s, env) {
+      const n = env.night * 0.5;
+      c.fillStyle = '#2a2119';
+      c.fillRect(x + w * 0.45, y + h * 0.86, w * 0.1, h * 0.14);
+      const tiers = [[0.05, 0.4, 0.28], [0.25, 0.64, 0.4], [0.45, 0.88, 0.5]];
+      for (const [top, bottom, half] of tiers) {
+        c.fillStyle = mix('#2b6a4a', '#123022', n);
+        tri(c, x + w / 2, y + h * top, x + w * (0.5 + half), y + h * bottom, x + w * (0.5 - half), y + h * bottom);
+        c.fillStyle = mix('#eef3fa', '#b8c4d6', n);
+        tri(c, x + w / 2, y + h * top, x + w * (0.5 + half * 0.3), y + h * (top + (bottom - top) * 0.3), x + w * (0.5 - half * 0.3), y + h * (top + (bottom - top) * 0.3));
+      }
+      if (s.plain || w < 6) return;
+      const colors = ['#ff4d6d', '#ffd166', '#06d6a0', '#4cc9f0', '#ffffff'];
+      const dot = Math.max(1.2, w * 0.022);
+      for (let k = 0; k < 24; k++) {
+        const row = k % 6;
+        const v = 0.2 + row * 0.12;
+        const spread = 0.12 + row * 0.07;
+        const u = ((k * 0.37) % 1) * 2 - 1;
+        const on = Math.sin(env.time * 4 + k * 1.7) > -0.2;
+        if (!on) continue;
+        c.fillStyle = colors[k % colors.length];
+        c.fillRect(x + w * (0.5 + u * spread) - dot / 2, y + h * v, dot, dot);
+      }
+      if (w > 12) glow(c, x + w / 2, y + h * 0.05, w * 0.18, 'rgba(255,214,102,0.7)');
+      c.fillStyle = '#ffd166';
+      tri(c, x + w / 2, y - h * 0.01, x + w * 0.55, y + h * 0.08, x + w * 0.45, y + h * 0.08);
+    },
+  },
+
+  // Ayaz Ata: blue robe with white fur, a tall hat, a white beard, a staff, waving
+  ayaz: {
+    w: 560, h: 1900, hit: 0.3,
+    draw(c, x, y, w, h, s, env) {
+      const n = env.night * 0.35;
+      const cx = x + w / 2;
+      const robe = mix('#2f5fbf', '#16295a', n);
+      const fur = mix('#f4f6fa', '#b9c2d2', n);
+      c.fillStyle = '#c0392b';
+      c.beginPath();
+      c.ellipse(x + w * 0.85, y + h * 0.92, w * 0.16, h * 0.08, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = robe;
+      c.beginPath();
+      c.moveTo(cx - w * 0.16, y + h * 0.3);
+      c.lineTo(cx + w * 0.16, y + h * 0.3);
+      c.lineTo(cx + w * 0.3, y + h);
+      c.lineTo(cx - w * 0.3, y + h);
+      c.closePath();
+      c.fill();
+      c.fillStyle = fur;
+      c.fillRect(cx - w * 0.3, y + h * 0.95, w * 0.6, h * 0.05);
+      c.fillRect(cx - w * 0.03, y + h * 0.32, w * 0.06, h * 0.63);
+      c.fillStyle = '#e2b13c';
+      c.fillRect(cx - w * 0.2, y + h * 0.52, w * 0.4, h * 0.025);
+      // the staff with a star
+      c.fillStyle = mix('#8a5a34', '#3a2616', n);
+      c.fillRect(x + w * 0.1, y + h * 0.12, w * 0.04, h * 0.88);
+      c.fillStyle = '#ffd166';
+      tri(c, x + w * 0.12, y + h * 0.06, x + w * 0.18, y + h * 0.14, x + w * 0.06, y + h * 0.14);
+      // the waving arm
+      const wave = Math.sin(env.time * 5 + (s.phase || 0)) * 0.35;
+      c.save();
+      c.translate(cx + w * 0.14, y + h * 0.34);
+      c.rotate(-1.9 + wave);
+      c.fillStyle = robe;
+      c.fillRect(0, -w * 0.05, w * 0.32, w * 0.1);
+      c.fillStyle = fur;
+      c.fillRect(w * 0.28, -w * 0.06, w * 0.06, w * 0.12);
+      c.restore();
+      // face, beard, hat
+      c.fillStyle = mix('#e8b896', '#7a5f4e', n);
+      c.beginPath();
+      c.arc(cx, y + h * 0.22, w * 0.12, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = fur;
+      c.beginPath();
+      c.moveTo(cx - w * 0.13, y + h * 0.23);
+      c.lineTo(cx + w * 0.13, y + h * 0.23);
+      c.lineTo(cx, y + h * 0.42);
+      c.closePath();
+      c.fill();
+      c.fillStyle = robe;
+      tri(c, cx, y, cx + w * 0.15, y + h * 0.17, cx - w * 0.15, y + h * 0.17);
+      c.fillStyle = fur;
+      c.fillRect(cx - w * 0.16, y + h * 0.15, w * 0.32, h * 0.035);
     },
   },
 };

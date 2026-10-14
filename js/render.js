@@ -239,7 +239,8 @@ export class Renderer {
         }
         x += bw + lw * r() * 0.01;
       }
-      for (const tx of [lw * 0.3]) {
+      if (m.skyline.landmarks === 'astana') this.astana(c, lw, sh);
+      for (const tx of m.skyline.landmarks ? [] : [lw * 0.3]) {
         const top = sh * 0.02;
         c.fillStyle = m.skyline.color;
         c.beginPath();
@@ -268,6 +269,109 @@ export class Renderer {
     L.vignette = vig;
 
     this.layers = L;
+  }
+
+  // the left bank of Astana at night: Baiterek, Khan Shatyr, the Nur Alem sphere and the towers
+  astana(c, lw, sh) {
+    const lit = '#cfd8ea';
+    // two towers with green edges
+    for (const [tx, tw, th] of [[0.12, 0.035, 0.78], [0.135, 0.03, 0.66]]) {
+      c.fillStyle = '#1b2442';
+      c.beginPath();
+      c.moveTo(lw * tx - sh * tw, sh);
+      c.lineTo(lw * tx - sh * tw * 0.6, sh * (1 - th));
+      c.lineTo(lw * tx, sh * (1 - th) - sh * 0.08);
+      c.lineTo(lw * tx + sh * tw * 0.6, sh * (1 - th));
+      c.lineTo(lw * tx + sh * tw, sh);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#3ddc97';
+      c.fillRect(lw * tx - 1, sh * (1 - th) - sh * 0.06, 2, sh * th);
+    }
+    // Baiterek: a white stem opening into a crown with a golden sphere
+    const bx = lw * 0.3;
+    const top = sh * 0.12;
+    c.fillStyle = lit;
+    c.beginPath();
+    c.moveTo(bx - sh * 0.035, sh);
+    c.lineTo(bx - sh * 0.008, top + sh * 0.12);
+    c.lineTo(bx + sh * 0.008, top + sh * 0.12);
+    c.lineTo(bx + sh * 0.035, sh);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = lit;
+    c.lineWidth = Math.max(1, sh * 0.006);
+    for (const k of [-1, -0.5, 0.5, 1]) {
+      c.beginPath();
+      c.moveTo(bx, top + sh * 0.14);
+      c.quadraticCurveTo(bx + k * sh * 0.05, top + sh * 0.08, bx + k * sh * 0.045, top - sh * 0.01);
+      c.stroke();
+    }
+    const glowG = c.createRadialGradient(bx, top + sh * 0.04, 0, bx, top + sh * 0.04, sh * 0.14);
+    glowG.addColorStop(0, 'rgba(255,207,90,0.55)');
+    glowG.addColorStop(1, 'rgba(255,207,90,0)');
+    c.fillStyle = glowG;
+    c.fillRect(bx - sh * 0.14, top - sh * 0.1, sh * 0.28, sh * 0.28);
+    c.fillStyle = '#ffcf5a';
+    c.beginPath();
+    c.arc(bx, top + sh * 0.04, sh * 0.045, 0, Math.PI * 2);
+    c.fill();
+    // Ak Orda: a low palace with a blue dome
+    const ax = lw * 0.42;
+    c.fillStyle = '#1b2442';
+    c.fillRect(ax - sh * 0.12, sh * 0.82, sh * 0.24, sh * 0.18);
+    c.fillStyle = '#3f7fd8';
+    c.beginPath();
+    c.arc(ax, sh * 0.82, sh * 0.06, Math.PI, 0);
+    c.fill();
+    c.fillStyle = '#ffd166';
+    c.fillRect(ax - 1, sh * 0.66, 2, sh * 0.1);
+    // Khan Shatyr: the leaning tent with a lit seam
+    const kx = lw * 0.55;
+    c.fillStyle = '#2a3560';
+    c.beginPath();
+    c.moveTo(kx - sh * 0.24, sh);
+    c.quadraticCurveTo(kx - sh * 0.1, sh * 0.6, kx + sh * 0.03, sh * 0.35);
+    c.quadraticCurveTo(kx + sh * 0.12, sh * 0.62, kx + sh * 0.22, sh);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(255,190,120,0.75)';
+    c.lineWidth = Math.max(1, sh * 0.005);
+    c.beginPath();
+    c.moveTo(kx - sh * 0.24, sh);
+    c.quadraticCurveTo(kx - sh * 0.1, sh * 0.6, kx + sh * 0.03, sh * 0.35);
+    c.stroke();
+    c.fillStyle = '#ffd166';
+    c.fillRect(kx + sh * 0.025, sh * 0.27, 2, sh * 0.08);
+    // the tallest tower
+    const tx = lw * 0.66;
+    c.fillStyle = '#1b2442';
+    c.fillRect(tx - sh * 0.04, sh * 0.16, sh * 0.08, sh * 0.84);
+    c.beginPath();
+    c.moveTo(tx - sh * 0.04, sh * 0.16);
+    c.lineTo(tx, sh * 0.06);
+    c.lineTo(tx + sh * 0.04, sh * 0.16);
+    c.closePath();
+    c.fill();
+    c.fillStyle = 'rgba(120,180,255,0.6)';
+    for (let wy = sh * 0.2; wy < sh * 0.95; wy += sh * 0.035) c.fillRect(tx - sh * 0.03, wy, sh * 0.06, 1);
+    // Nur Alem: the glass sphere
+    const nx = lw * 0.8;
+    const nr = sh * 0.11;
+    const ny = sh - nr - sh * 0.06;
+    c.fillStyle = '#1b2442';
+    c.fillRect(nx - nr * 0.5, ny, nr, sh - ny);
+    c.fillStyle = '#3a6fc4';
+    c.beginPath();
+    c.arc(nx, ny, nr, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = 'rgba(200,230,255,0.55)';
+    c.lineWidth = 1;
+    for (const k of [-0.6, -0.2, 0.2, 0.6]) {
+      c.beginPath();
+      c.ellipse(nx, ny + k * nr, nr * Math.sqrt(1 - k * k), nr * 0.08, 0, 0, Math.PI * 2);
+      c.stroke();
+    }
   }
 
   drawLayer(img, rotation, y) {
@@ -390,7 +494,7 @@ export class Renderer {
         this.poly(lx1 - l1 / 2, y1, lx1 + l1 / 2, y1, lx2 + l2 / 2, y2, lx2 - l2 / 2, y2, color.lane);
       }
     }
-    if (near && (seg.hole || seg.bump || seg.zebra || seg.puddle)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2, this.opts || {});
+    if (near && (seg.hole || seg.bump || seg.zebra || seg.puddle || seg.ice)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2, this.opts || {});
     if (seg.fog < 1) {
       c.globalAlpha = 1 - seg.fog;
       c.fillStyle = this.map.fogColor;
@@ -417,6 +521,15 @@ export class Renderer {
         const b = a + 2 / n;
         this.poly(x1 + w1 * a, y1, x1 + w1 * b, y1, x2 + w2 * b, y2, x2 + w2 * a, y2, k % 2 ? '#1e1f22' : '#e8b630');
       }
+    }
+    if (seg.ice && opts.ice !== false) {
+      // black ice: a glossy band across the lane
+      const a = seg.ice.center - seg.ice.half;
+      const b = seg.ice.center + seg.ice.half;
+      this.poly(x1 + w1 * a, y1, x1 + w1 * b, y1, x2 + w2 * b, y2, x2 + w2 * a, y2, 'rgba(190,220,255,0.3)');
+      const m1 = seg.ice.center - seg.ice.half * 0.15;
+      const m2 = seg.ice.center + seg.ice.half * 0.05;
+      this.poly(x1 + w1 * m1, y1, x1 + w1 * m2, y1, x2 + w2 * m2, y2, x2 + w2 * m1, y2, 'rgba(255,255,255,0.22)');
     }
     if (seg.puddle && opts.puddles !== false) {
       const p = seg.puddle;
@@ -756,7 +869,7 @@ export class Renderer {
         c.fill();
         c.restore();
       }
-      drawVehicle(c, x - dw / 2, y - dh, dw, dh, car.kind, car.color, { front: car.dir < 0, lights: env.lights });
+      drawVehicle(c, x - dw / 2, y - dh, dw, dh, car.kind, car.color, { front: car.dir < 0, lights: env.lights, time: env.time });
       if (car.wedding && dw > 6) this.drawWedding(car, x, y, dw, dh, env);
       if (car.melonTruck && dw > 8) {
         // an open cargo box piled with watermelons
@@ -1159,7 +1272,7 @@ export class Renderer {
     const { W, H } = this;
     const dt = Math.min(0.05, view.dt || 0);
     const speedPct = view.speed / BASE_MAX;
-    const drift = -view.steer * speedPct * 0.25 + 0.03;
+    const drift = -view.steer * speedPct * 0.25 + 0.03 + ((this.map.weather && this.map.weather.wind) || 0);
     const color = this.map.sky.night > 0.5 ? 'rgba(235,240,250,' : 'rgba(255,255,255,';
     const unit = H / 700;
     for (const f of this.flakes) {

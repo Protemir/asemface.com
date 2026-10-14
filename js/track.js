@@ -186,6 +186,15 @@ export class Track {
         }
       }
     }
+    // black ice: a stretch of glossy road, one lane or the whole width
+    for (let k = 0; k < (map.ice || 0); k++) {
+      const i = start + Math.floor(r() * (N - start - 60));
+      const len = 8 + Math.floor(r() * 10);
+      const wide = r() < 0.35;
+      const center = wide ? 0 : this.laneX[Math.floor(r() * this.laneX.length)];
+      const half = wide ? 0.95 : 0.3;
+      for (let d = 0; d < len; d++) this.segments[i + d].ice = { center, half };
+    }
     // tumbleweeds wait on the shoulders and roll across when the car comes
     for (let k = 0; k < (map.tumbleweeds || 0); k++) {
       const i = start + Math.floor(r() * (N - start - 40));
@@ -342,7 +351,7 @@ export class Track {
       const oncoming = this.lanes === 2 && r() < (tr.oncoming || 0);
       const segIndex = 50 + Math.floor(r() * (this.segments.length - 70));
       const kind = pick();
-      const big = kind === 'truck' || kind === 'bus';
+      const big = kind === 'truck' || kind === 'bus' || kind === 'plow';
       let offset;
       if (this.lanes === 3) offset = this.laneX[Math.floor(r() * 3)];
       else offset = oncoming ? this.laneX[0] : this.laneX[1];

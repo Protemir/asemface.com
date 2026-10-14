@@ -88,6 +88,9 @@ const g = {
   mud: null,
   lastPuddle: -1,
   rainWipe: 0,
+  plowCool: 0,
+  iceSound: 0,
+  onIce: false,
   convoy: null,
   weaver: null,
 };
@@ -109,13 +112,16 @@ function setMap(id) {
 }
 
 // ---------- road options: three levels, or every switch by hand ----------
-const OPTS = ['herds', 'police', 'bumps', 'puddles', 'melons', 'tumble', 'wedding', 'weaver', 'walkers', 'props', 'talk'];
+const OPTS = ['herds', 'police', 'bumps', 'ice', 'puddles', 'melons', 'tumble', 'wedding', 'weaver', 'walkers', 'props', 'talk'];
 const LEVELS = {
   calm: [],
   fun: ['tumble', 'wedding', 'weaver', 'walkers', 'props', 'talk'],
   full: OPTS,
 };
-const opts = Object.assign(Object.fromEntries(OPTS.map((k) => [k, true])), { shake: true }, store.get('asem.opts', {}));
+// everyone starts calm and switches the chaos on in the settings
+const opts = Object.assign(Object.fromEntries(OPTS.map((k) => [k, false])), { shake: true }, store.get('asem.opts', {}));
+const savedLevel = store.get('asem.level', null);
+if (savedLevel && LEVELS[savedLevel]) for (const k of OPTS) opts[k] = LEVELS[savedLevel].includes(k);
 function levelOf() {
   for (const [id, on] of Object.entries(LEVELS)) if (OPTS.every((k) => !!opts[k] === on.includes(k))) return id;
   return 'custom';
@@ -123,11 +129,13 @@ function levelOf() {
 function setOpt(key, on) {
   opts[key] = on;
   store.set('asem.opts', opts);
+  store.set('asem.level', 'custom');
   applyOptions();
 }
 function setLevel(id) {
   for (const k of OPTS) opts[k] = LEVELS[id].includes(k);
   store.set('asem.opts', opts);
+  store.set('asem.level', id);
   applyOptions();
 }
 // switched-off things vanish at once, even in the middle of a race
@@ -403,8 +411,19 @@ function update(dt) {
   if (driving) g.steer = input.left && !input.right ? -1 : input.right && !input.left ? 1 : 0;
   else if (g.mode === 'menu') blocker = autopilot(T, pSeg);
   else g.steer = 0;
-  g.playerX += dx * g.steer;
-  g.playerX -= dx * speedPct * pSeg.curve * (0.3 / st.grip);
+  // black ice: the wheel barely answers and the bends push the car out
+  const ice = opts.ice && pSeg.ice && (g.mode === 'play' || g.mode === 'ending') && Math.abs(g.playerX - pSeg.ice.center) < pSeg.ice.half + 0.1;
+  g.playerX += dx * g.steer * (ice ? 0.3 : 1);
+  g.playerX -= dx * speedPct * pSeg.curve * (0.3 / st.grip) * (ice ? 1.8 : 1);
+  if (ice) {
+    g.playerX += Math.sin(g.time * 6) * dt * 0.25 * speedPct;
+    if (g.time > g.iceSound) {
+      noise(0.25, 0.06, 3200);
+      g.iceSound = g.time + 0.4;
+    }
+    if (!g.onIce && (progress.stats.ice = (progress.stats.ice || 0) + 1) >= 10) unlock('ice');
+  }
+  g.onIce = !!ice;
 
   g.braking = driving && input.brake;
   g.boosting = driving && input.nitro && g.nitro > 0;
@@ -834,7 +853,7 @@ function breakCombo() {
 
 // ---------- achievements ----------
 
-const ACH = ['first_finish', 'story_done', 'three_stars', 'all_friends', 'legal', 'shepherd', 'melons', 'tubeman', 'near10', 'combo8', 'speed', 'baursak', 'paint', 'honk100', 'style10k', 'splat', 'bump', 'wedding', 'tumble', 'wipers'];
+const ACH = ['first_finish', 'story_done', 'three_stars', 'all_friends', 'legal', 'shepherd', 'melons', 'tubeman', 'near10', 'combo8', 'speed', 'baursak', 'paint', 'honk100', 'style10k', 'splat', 'bump', 'wedding', 'tumble', 'wipers', 'ice'];
 const achQueue = [];
 let achShowing = false;
 function unlock(id) {
@@ -883,6 +902,19 @@ function roadStuff(T, pSeg, dt) {
   if (g.mode === 'play' && opts.puddles && !g.mud && g.map.weather && g.map.weather.rain && g.time > g.rainWipe) {
     rainScreen();
     g.rainWipe = g.time + 6 + Math.random() * 3;
+  }
+  // tailing a snowplow: its snow lands on the windscreen
+  if (g.mode === 'play' && opts.puddles && !g.mud && g.time > g.plowCool) {
+    const pz = g.position + PLAYER_Z;
+    for (const c of T.cars) {
+      if (c.kind !== 'plow') continue;
+      const rel = gap(c.z, pz, T.length);
+      if (rel > 0 && rel < SEG * 7 && Math.abs(c.offset - g.playerX) < 0.4) {
+        splashScreen('slush');
+        g.plowCool = g.time + 4;
+        break;
+      }
+    }
   }
   weddingCool -= dt;
   if (g.mode === 'play' && g.convoy && weddingCool <= 0) {
@@ -1134,6 +1166,8 @@ function startRace(opts) {
     lastPuddle: -1,
     mud: null,
     rainWipe: g.time + 5,
+    plowCool: 0,
+    onIce: false,
   });
   // the weaver starts behind the line, the race has just put the car back to zero
   if (g.weaver) {
@@ -1343,7 +1377,7 @@ const screenMain = screen(() => {
     item(t('garage'), t('car_' + currentCar().id), false, () => screenGarage()),
     item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
     item(t('achievements'), t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }), false, () => screenAchievements()),
-    item(t('settings'), t('settingsSub', { l: t('level_' + levelOf()) }), false, () => screenSettings()),
+    item(t('settings'), levelOf() === 'calm' ? t('settingsSubCalm') : t('settingsSub', { l: t('level_' + levelOf()) }), false, () => screenSettings()),
   );
   // phones: the whole screen for the road; iPhone Safari cannot do it for pages, the home screen icon can
   if (isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
