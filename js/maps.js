@@ -536,26 +536,26 @@ export const CHAPTERS = [
     },
     goal: { ru: 'Успей к первому лучу.', en: 'Make it before the first ray of sun.' },
     outro: {
-      ru: 'Дверь открывается, а там Даурито, Орито, Сакито, Ерито и Тимито с тортом. Заказ был для Әсем: сегодня её день рождения.',
-      en: 'The door opens and there are Daurito, Orito, Sakito, Erito and Timito with a cake. The order was for Asem: it is her birthday today.',
+      ru: 'Дверь открывается, а там Даур, Ора, Сакен, Ера и Тима с тортом. Заказ был для Әсем: сегодня её день рождения.',
+      en: 'The door opens and there are Daur, Ora, Saken, Era and Tima with a cake. The order was for Asem: it is her birthday today.',
     },
   },
   {
     map: 'kapchagay',
     title: { ru: 'Капчагай на закате', en: 'Kapchagay at sunset' },
     intro: {
-      ru: 'Через неделю Даурито зовёт всех на Капчагай: кто последний до берега, тот жарит шашлык. Степь, ветер, фуры навстречу и закат над водой.',
-      en: 'A week later Daurito calls everyone to Kapchagay: the last one to the shore cooks the barbecue. Steppe, wind, oncoming trucks and a sunset over the water.',
+      ru: 'Через неделю Даур зовёт всех на Капчагай: кто последний до берега, тот жарит шашлык. Степь, ветер, фуры навстречу и закат над водой.',
+      en: 'A week later Daur calls everyone to Kapchagay: the last one to the shore cooks the barbecue. Steppe, wind, oncoming trucks and a sunset over the water.',
     },
     goal: { ru: 'Доедь до берега, пока солнце не село.', en: 'Reach the shore before the sun goes down.' },
-    outro: { ru: 'Солнце садится в воду. Сакито уже разжигает мангал и делает вид, что так и было задумано.', en: 'The sun sets into the water. Sakito is already lighting the grill and pretends it was the plan all along.' },
+    outro: { ru: 'Солнце садится в воду. Сакен уже разжигает мангал и делает вид, что так и было задумано.', en: 'The sun sets into the water. Saken is already lighting the grill and pretends it was the plan all along.' },
   },
   {
     map: 'charyn',
     title: { ru: 'Чарын', en: 'Charyn' },
     intro: {
-      ru: 'Последняя поездка лета: Тимито знает дорогу через каньон. Красные скалы, жара, и Ерито опять спорит, что доедет первым.',
-      en: 'The last trip of the summer: Timito knows a road through the canyon. Red rocks, heat, and Erito swears once again to get there first.',
+      ru: 'Последняя поездка лета: Тима знает дорогу через каньон. Красные скалы, жара, и Ера опять спорит, что будет на месте раньше всех.',
+      en: 'The last trip of the summer: Tima knows a road through the canyon. Red rocks, heat, and Era swears once again to get there first.',
     },
     goal: { ru: 'Проедь Долину замков до ясеневой рощи.', en: 'Drive through the Valley of Castles to the ash grove.' },
     outro: { ru: 'Тень ясеней, холодная река и тишина. Лето удалось.', en: 'The shade of the ash trees, a cold river and silence. A good summer.' },
@@ -564,8 +564,8 @@ export const CHAPTERS = [
     map: 'kolsai',
     title: { ru: 'Кольсай под дождём', en: 'Kolsai in the rain' },
     intro: {
-      ru: 'Осень. Орито нашёл в прогнозе окно без дождя, которого не было. Едут на Кольсай под ливнем: Саты, ущелье, озеро Каинды с затопленным лесом, а на дороге табуны.',
-      en: 'Autumn. Orito found a dry window in the forecast that was not there. They drive to Kolsai in the pouring rain: Saty, the gorge, Lake Kaindy with its sunken forest, and herds of horses on the road.',
+      ru: 'Осень. Ора уверяет, что дождя не будет, и все едут на Кольсай прямо под ливень: Саты, ущелье, озеро Каинды с затопленным лесом, а на дороге табуны.',
+      en: 'Autumn. Ora promises it will not rain, and everyone drives to Kolsai straight into a downpour: Saty, the gorge, Lake Kaindy with its sunken forest, and herds of horses on the road.',
     },
     goal: { ru: 'Доберись до озера Кольсай, пока не стемнело.', en: 'Reach Lake Kolsai before dark.' },
     outro: {
@@ -577,11 +577,11 @@ export const CHAPTERS = [
 
 // Asem's friends: they race along in every run, with their names over the cars
 export const FRIENDS = [
-  { name: { ru: 'Даурито', en: 'Daurito' }, model: { ru: 'Шкода', en: 'Škoda' }, kind: 'octavia', color: '#18a39a' },
-  { name: { ru: 'Орито', en: 'Orito' }, model: { ru: 'Соренто', en: 'Sorento' }, kind: 'sorento', color: '#f08a24' },
-  { name: { ru: 'Сакито', en: 'Sakito' }, model: { ru: 'Киа', en: 'Kia' }, kind: 'kia', color: '#3f6fd8' },
-  { name: { ru: 'Ерито', en: 'Erito' }, model: { ru: 'Фольксваген', en: 'Volkswagen' }, kind: 'golf', color: '#eeeeee' },
-  { name: { ru: 'Тимито', en: 'Timito' }, model: { ru: 'Чанган', en: 'Changan' }, kind: 'changan', color: '#6b8e23' },
+  { name: { ru: 'Даур', en: 'Daur' }, model: { ru: 'Шкода', en: 'Škoda' }, kind: 'octavia', color: '#18a39a' },
+  { name: { ru: 'Ора', en: 'Ora' }, model: { ru: 'Соренто', en: 'Sorento' }, kind: 'sorento', color: '#f08a24' },
+  { name: { ru: 'Сакен', en: 'Saken' }, model: { ru: 'Киа', en: 'Kia' }, kind: 'kia', color: '#3f6fd8' },
+  { name: { ru: 'Ера', en: 'Era' }, model: { ru: 'Фольксваген', en: 'Volkswagen' }, kind: 'golf', color: '#eeeeee' },
+  { name: { ru: 'Тима', en: 'Tima' }, model: { ru: 'Чанган', en: 'Changan' }, kind: 'changan', color: '#6b8e23' },
 ];
 
 export const CARS = [

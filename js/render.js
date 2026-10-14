@@ -868,7 +868,7 @@ export class Renderer {
     c.fillText(text, x, top + bh / 2 + 0.5);
   }
 
-  // "Sakito Kia" over a friend's car: the name in bold, the model smaller and dimmer
+  // "Saken Kia" over a friend's car: the name in bold, the model smaller and dimmer
   nameTag(text, sub, x, bottom, dw, color) {
     const c = this.ctx;
     const size = clamp(dw * 0.16, 9, 22);
