@@ -31,6 +31,24 @@ function glow(c, x, y, r, color) {
   c.fillRect(x - r, y - r, r * 2, r * 2);
 }
 
+function speech(c, text, cx, bottom, w) {
+  const size = Math.max(9, Math.min(26, w * 0.55));
+  c.font = `800 ${size}px ${SANS}`;
+  const tw = c.measureText(text).width;
+  const bw = tw + size * 0.9;
+  const bh = size * 1.5;
+  const bx = cx - bw / 2;
+  const by = bottom - bh;
+  c.fillStyle = '#ffffff';
+  roundRect(c, bx, by, bw, bh, bh / 2.4);
+  c.fill();
+  tri(c, cx - size * 0.3, by + bh - 1, cx + size * 0.2, by + bh - 1, cx - size * 0.1, by + bh + size * 0.5);
+  c.fillStyle = '#16181d';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(text, cx, by + bh / 2 + 0.5);
+}
+
 // ---------- vehicles ----------
 
 export const VEHICLES = {
@@ -934,6 +952,123 @@ export const SPRITES = {
           c.stroke();
         }
       }
+    },
+  },
+
+  // ---------- the traffic cop, his car and his sign ----------
+
+  cop: {
+    w: 260, h: 660, hit: 0, cop: true,
+    draw(c, x, y, w, h, s, env) {
+      const cx = x + w / 2;
+      const dark = env.night * 0.5;
+      c.fillStyle = mix('#2c3442', '#14181f', dark);
+      c.fillRect(cx - w * 0.17, y + h * 0.62, w * 0.14, h * 0.38);
+      c.fillRect(cx + w * 0.03, y + h * 0.62, w * 0.14, h * 0.38);
+      c.fillStyle = mix('#3a4658', '#1a2029', dark);
+      c.fillRect(cx - w * 0.24, y + h * 0.28, w * 0.48, h * 0.38);
+      // reflective vest
+      c.fillStyle = mix('#c6e33a', '#6a7a22', dark);
+      c.fillRect(cx - w * 0.22, y + h * 0.3, w * 0.44, h * 0.3);
+      c.fillStyle = '#e8eef2';
+      c.fillRect(cx - w * 0.22, y + h * 0.42, w * 0.44, h * 0.03);
+      c.fillRect(cx - w * 0.22, y + h * 0.5, w * 0.44, h * 0.03);
+      c.fillStyle = mix('#e0b08c', '#6b5446', dark);
+      c.beginPath();
+      c.arc(cx, y + h * 0.18, w * 0.18, 0, Math.PI * 2);
+      c.fill();
+      // cap
+      c.fillStyle = mix('#3a4658', '#1a2029', dark);
+      c.fillRect(cx - w * 0.22, y + h * 0.04, w * 0.44, h * 0.07);
+      c.fillRect(cx - w * 0.28, y + h * 0.1, w * 0.56, h * 0.025);
+      const angry = s.say && env.time < s.sayUntil;
+      const towards = s.offset > 0 ? -1 : 1;
+      if (angry) {
+        // the striped baton up in the air
+        c.fillStyle = '#f2f4f7';
+        c.fillRect(cx + towards * w * 0.3 - w * 0.04, y - h * 0.08, w * 0.08, h * 0.36);
+        c.fillStyle = '#1a1d22';
+        for (let k = 0; k < 4; k++) c.fillRect(cx + towards * w * 0.3 - w * 0.04, y - h * 0.08 + k * h * 0.09, w * 0.08, h * 0.045);
+      } else {
+        // radar gun aimed at the road
+        c.fillStyle = mix('#3a4658', '#1a2029', dark);
+        c.fillRect(cx + (towards > 0 ? w * 0.2 : -w * 0.5), y + h * 0.32, w * 0.3, h * 0.06);
+        c.fillStyle = '#1a1d22';
+        c.fillRect(cx + (towards > 0 ? w * 0.42 : -w * 0.62), y + h * 0.3, w * 0.2, h * 0.09);
+        if (w > 8) {
+          c.fillStyle = '#ff4136';
+          c.fillRect(cx + (towards > 0 ? w * 0.58 : -w * 0.62), y + h * 0.32, w * 0.04, h * 0.03);
+        }
+      }
+      if (angry && w > 9) speech(c, s.say, cx, y - h * 0.12, w);
+    },
+  },
+  policecar: {
+    w: 760, h: 520, hit: 0.9,
+    draw(c, x, y, w, h, s, env) {
+      drawVehicle(c, x, y, w, h * 0.96, 'sedan', '#eef1f5', { lights: env.night });
+      c.fillStyle = '#1f5fbf';
+      c.fillRect(x, y + h * 0.5, w, h * 0.06);
+      // the light bar flashes red and blue
+      const on = Math.floor(env.time * 6) % 2;
+      c.fillStyle = on ? '#ff2b2b' : '#5a1414';
+      c.fillRect(x + w * 0.3, y - h * 0.02, w * 0.2, h * 0.06);
+      c.fillStyle = on ? '#1a2a5a' : '#3a7bff';
+      c.fillRect(x + w * 0.5, y - h * 0.02, w * 0.2, h * 0.06);
+      if (w > 10) {
+        glow(c, on ? x + w * 0.4 : x + w * 0.6, y, w * (0.5 + env.night * 0.5), on ? 'rgba(255,40,40,0.45)' : 'rgba(60,120,255,0.45)');
+      }
+    },
+  },
+  limit: {
+    w: 560, h: 1350, hit: 0.3,
+    draw(c, x, y, w, h, s) {
+      const cx = x + w / 2;
+      const r = w * 0.48;
+      c.fillStyle = '#6b7280';
+      c.fillRect(cx - w * 0.04, y + r * 1.8, w * 0.08, h - r * 1.8);
+      c.fillStyle = '#d42a2a';
+      c.beginPath();
+      c.arc(cx, y + r, r, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#f4f5f7';
+      c.beginPath();
+      c.arc(cx, y + r, r * 0.76, 0, Math.PI * 2);
+      c.fill();
+      if (w > 12) {
+        c.fillStyle = '#16181d';
+        c.font = `800 ${r * 0.62}px ${SANS}`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(String(s.limit || 200), cx, y + r * 1.04);
+      }
+    },
+  },
+
+  // ---------- sheep ----------
+
+  sheep: {
+    w: 330, h: 250, hit: 0, sheep: true,
+    draw(c, x, y, w, h, s, env) {
+      const dark = env.night * 0.6;
+      const face = (s.vx || 0) >= 0 ? 1 : -1;
+      const cx = x + w / 2;
+      const trot = s.vx ? Math.sin(env.time * 14 + (s.phase || 0)) * h * 0.05 : 0;
+      c.fillStyle = '#1a1b1f';
+      for (const [k, sign] of [[-0.28, 1], [-0.12, -1], [0.12, 1], [0.28, -1]]) {
+        c.fillRect(cx + w * k - w * 0.025, y + h * 0.62 + trot * sign, w * 0.05, h * 0.38 - trot * sign);
+      }
+      c.fillStyle = mix(s.wool || '#f1ede4', '#7a7770', dark);
+      for (const [ax, ay, r] of [[-0.22, 0.42, 0.2], [0, 0.36, 0.23], [0.2, 0.42, 0.2], [-0.1, 0.55, 0.2], [0.12, 0.55, 0.2]]) {
+        c.beginPath();
+        c.arc(cx + w * ax, y + h * ay, w * r, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#26272b';
+      c.beginPath();
+      c.ellipse(cx + face * w * 0.38, y + h * 0.36, w * 0.11, h * 0.13, face * 0.4, 0, Math.PI * 2);
+      c.fill();
+      if (s.say && env.time < s.sayUntil && w > 9) speech(c, s.say, cx, y - h * 0.1, w * 1.2);
     },
   },
 };

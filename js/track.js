@@ -38,6 +38,7 @@ export class Track {
     for (const seg of this.segments) map.decorate(this, seg, r);
     for (const [i, type, offset, extra] of map.extras ? map.extras(this) : []) this.addSprite(i, type, offset, extra, true);
     if (map.fun) this.placeFun(map.fun, r);
+    this.placeTraps(map, r);
     for (let z = 0; z < this.zoneStart.length; z++) {
       const seg = this.segments[this.zoneStart[z] + GATE_AT];
       seg.gate = z + 1;
@@ -48,7 +49,7 @@ export class Track {
     this.dynamic = [];
     for (const seg of this.segments) {
       for (const s of seg.sprites) {
-        if (s.def.walker || s.def.breakable) {
+        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep) {
           s.base = s.offset;
           this.dynamic.push(s);
         }
@@ -59,7 +60,7 @@ export class Track {
 
   resetDynamic() {
     for (const s of this.dynamic) {
-      Object.assign(s, { offset: s.base, t0: 0, fly: false, gone: false, dodge: false, say: null, sayUntil: 0, lift: 0, rot: 0, alpha: 1 });
+      Object.assign(s, { offset: s.base, t0: 0, fly: false, gone: false, dodge: false, say: null, sayUntil: 0, lift: 0, rot: 0, alpha: 1, checked: false, scatter: false, vx: s.vx0 ?? s.vx });
     }
   }
 
@@ -155,6 +156,44 @@ export class Track {
         const seg = this.segments[wrap(this.zoneStart[start[0]] + start[1] + k * 3, this.segments.length)];
         seg.sprites.push({ def: SPRITES.cone, type: 'cone', offset });
       }
+    }
+  }
+
+  // a speed-limit sign, then a traffic cop with a radar and his car; flocks of sheep with a shepherd
+  placeTraps(map, r) {
+    const N = this.segments.length;
+    const at = (z, off) => wrap(this.zoneStart[z] + off, N);
+    const clear = (i, side) => {
+      for (let d = -3; d <= 3; d++) {
+        const seg = this.segments[wrap(i + d, N)];
+        seg.sprites = seg.sprites.filter((s) => Math.sign(s.offset) !== side || Math.abs(s.offset) > 2.4);
+      }
+    };
+    for (const [z, off] of map.police || []) {
+      const i = at(z, off);
+      clear(i, 1);
+      clear(i - 110, 1);
+      this.segments[wrap(i - 110, N)].sprites.push({ def: SPRITES.limit, type: 'limit', offset: 1.25, limit: 200 });
+      this.segments[i].sprites.push({ def: SPRITES.cop, type: 'cop', offset: 1.38 });
+      this.segments[wrap(i + 3, N)].sprites.push({ def: SPRITES.policecar, type: 'policecar', offset: 1.5 });
+    }
+    for (const [z, off, count] of map.herds || []) {
+      const i = at(z, off);
+      clear(i - 45, 1);
+      this.segments[wrap(i - 45, N)].sprites.push({ def: SPRITES.sign, type: 'sign', offset: 1.25, label: { ru: 'Скот на дороге', en: 'Livestock' }, color: '#8a6d12' });
+      for (let k = 0; k < count; k++) {
+        const vx = (0.12 + r() * 0.22) * (r() < 0.5 ? -1 : 1);
+        this.segments[wrap(i + Math.floor(k * 0.9), N)].sprites.push({
+          def: SPRITES.sheep,
+          type: 'sheep',
+          offset: -1.1 + r() * 2.2,
+          vx,
+          vx0: vx,
+          phase: r() * 6,
+          wool: r() < 0.15 ? '#3a332c' : r() < 0.3 ? '#d9cbb0' : '#f1ede4',
+        });
+      }
+      this.segments[wrap(i + 2, N)].sprites.push({ def: SPRITES.walker, type: 'walker', offset: -1.5, coat: '#6b4a2a', pants: '#2a2d35', hat: '#2b2b2b', shepherd: true });
     }
   }
 

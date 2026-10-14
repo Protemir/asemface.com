@@ -4,7 +4,7 @@ import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn } from './audio.js';
+import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 
@@ -229,7 +229,7 @@ function update(dt) {
       const limit = (BASE_MAX / 4) * st.offroad;
       if (g.speed > limit) g.speed -= (BASE_MAX / 2 / st.offroad) * dt;
       for (const s of pSeg.sprites) {
-        if (s.def.walker || s.def.breakable) continue;
+        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep) continue;
         const sw = (s.w || s.def.w) / ROAD_W;
         const center = s.offset + (s.offset > 0 ? sw / 2 : -sw / 2);
         if (overlap(g.playerX, PLAYER_W, center, sw * s.def.hit)) {
@@ -358,7 +358,7 @@ function funStuff(T, pSeg, dt) {
         s.t0 = g.time;
         s.dir = s.offset > g.playerX ? 1 : -1;
         const phrases = t('screams');
-        s.say = phrases[Math.floor(Math.random() * phrases.length)];
+        s.say = s.shepherd ? t('shepherd') : phrases[Math.floor(Math.random() * phrases.length)];
         s.sayUntil = g.time + 1.4;
         animating.add(s);
         if (screamCool <= 0) {
@@ -386,6 +386,7 @@ function funStuff(T, pSeg, dt) {
       }
     }
   }
+  copsAndSheep(T, pSeg, dt);
   for (const s of animating) {
     const k = g.time - s.t0;
     if (s.fly) {
@@ -406,6 +407,12 @@ function funStuff(T, pSeg, dt) {
       if (k > 2.2) {
         s.rot = 0;
         s.lift = 0;
+        if (s.def.sheep) {
+          s.dodge = false;
+          s.scatter = true;
+          s.vx = 0;
+          s.base = s.offset;
+        }
         animating.delete(s);
       }
     }
@@ -430,10 +437,10 @@ function honk() {
   const N = T.segments.length;
   const pSeg = T.segAt(g.position + PLAYER_Z);
   let answered = false;
-  for (let n = 1; n <= 30; n++) {
+  for (let n = 1; n <= 45; n++) {
     const seg = T.segments[(pSeg.i + n) % N];
     for (const s of seg.sprites) {
-      if (s.def.walker && !s.dodge && Math.abs(s.offset - g.playerX) < 1.6) {
+      if (n <= 30 && s.def.walker && !s.dodge && Math.abs(s.offset - g.playerX) < 1.6) {
         s.dodge = true;
         s.t0 = g.time;
         s.dir = s.offset > g.playerX ? 1 : -1;
@@ -441,6 +448,15 @@ function honk() {
         s.say = phrases[Math.floor(Math.random() * phrases.length)];
         s.sayUntil = g.time + 1.4;
         animating.add(s);
+      }
+    }
+    for (const s of seg.sprites) {
+      if (!s.def.sheep || s.scatter || s.dodge) continue;
+      s.scatter = true;
+      s.vx = (s.offset >= 0 ? 1 : -1) * (2.2 + Math.random());
+      if (Math.random() < 0.4) {
+        s.say = t('baa');
+        s.sayUntil = g.time + 1;
       }
     }
     if (n > 14) continue;
@@ -454,6 +470,68 @@ function honk() {
       // move over to a free lane, or squeeze to the shoulder on a two-lane road
       const free = T.laneX.filter((l) => Math.abs(l - c.offset) > 0.3 && (T.lanes === 3 || l > 0));
       c.yieldTo = free.length ? free[0] : clamp(c.offset + 0.35, -0.9, 0.9);
+    }
+  }
+}
+
+const KMH_LIMIT = 200;
+let bleatCool = 0;
+function copsAndSheep(T, pSeg, dt) {
+  const N = T.segments.length;
+  bleatCool -= dt;
+  const racing = g.mode === 'play' || g.mode === 'ending';
+  g.radar = false;
+  for (let n = -1; n <= 125; n++) {
+    const seg = T.segments[(pSeg.i + n + N) % N];
+    for (const s of seg.sprites) {
+      if (s.def.cop && !s.checked && n > 1) g.radar = true;
+      if (s.def.cop && racing && !s.checked && n <= 1) {
+        // the radar: faster than the limit costs time, at the limit earns a little nitro
+        s.checked = true;
+        const kmh = (g.speed / BASE_MAX) * KMH_AT_MAX;
+        if (kmh > KMH_LIMIT) {
+          s.say = t('copStop');
+          s.sayUntil = g.time + 2;
+          if (g.mode === 'play') g.timeLeft = Math.max(0, g.timeLeft - 3);
+          toast(t('fine'));
+          whistle();
+        } else {
+          s.say = t('copOk');
+          s.sayUntil = g.time + 2;
+          g.nitro = Math.min(1, g.nitro + 0.12);
+          toast(t('copThanks'));
+        }
+      }
+      if (!s.def.sheep) continue;
+      // sheep wander across the road until scared off
+      if (s.dodge) continue;
+      if (s.scatter) {
+        if (Math.abs(s.offset) < 1.6) s.offset += s.vx * dt;
+        else s.vx = 0;
+      } else if (s.vx) {
+        s.offset += s.vx * dt;
+        if (Math.abs(s.offset) > 1.3) s.vx = -Math.sign(s.offset) * Math.abs(s.vx);
+      }
+      s.base = s.offset;
+      if (racing && n <= 1 && g.crashCool <= 0 && overlap(g.playerX, PLAYER_W, s.offset, 0.16)) {
+        // a sheep in the way: it jumps aside, the car nearly stops
+        g.speed = Math.min(g.speed, BASE_MAX * 0.22);
+        g.crashCool = 0.5;
+        g.shake = Math.max(g.shake, 0.6);
+        s.dodge = true;
+        s.t0 = g.time;
+        s.dir = s.offset >= g.playerX ? 1 : -1;
+        s.say = t('baa');
+        s.sayUntil = g.time + 1.4;
+        animating.add(s);
+        bleat();
+        toast(t('sheepHit'));
+      } else if (racing && n > 1 && n < 30 && bleatCool <= 0 && Math.abs(s.offset - g.playerX) < 0.5 && Math.random() < 0.02) {
+        s.say = t('baa');
+        s.sayUntil = g.time + 1;
+        bleat();
+        bleatCool = 1.2;
+      }
     }
   }
 }
@@ -618,6 +696,7 @@ function updateHud() {
     hud.nitro.style.transform = `scaleX(${g.nitro})`;
   }
   hud.root.classList.toggle('boost', g.boosting);
+  hud.root.classList.toggle('radar', !!g.radar && (g.speed / BASE_MAX) * KMH_AT_MAX > KMH_LIMIT);
 }
 
 const bannerEl = $('banner');

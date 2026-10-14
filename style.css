@@ -76,6 +76,8 @@ button { font: inherit; color: inherit; }
   transform-origin: left center;
   transform: scaleX(0);
 }
+.hud.radar .speed b { color: #ff5a4a; animation: radar 0.5s steps(2) infinite; }
+@keyframes radar { 50% { opacity: 0.45; } }
 .hud.boost .nitro i { background: linear-gradient(90deg, #ff9a3d, #ffd36b); }
 .hud-center { text-align: center; }
 .time {

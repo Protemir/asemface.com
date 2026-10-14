@@ -183,3 +183,59 @@ export function horn() {
     o.stop(t + 0.42);
   }
 }
+
+// the traffic cop's whistle: a fast trill
+export function whistle() {
+  if (!sound.on || !sound.ctx) return;
+  const c = sound.ctx;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  o.type = 'sine';
+  o.frequency.value = 2600;
+  const lfo = c.createOscillator();
+  lfo.type = 'square';
+  lfo.frequency.value = 28;
+  const depth = c.createGain();
+  depth.gain.value = 260;
+  lfo.connect(depth).connect(o.frequency);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.08, t + 0.02);
+  g.gain.setValueAtTime(0.08, t + 0.5);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+  o.connect(g).connect(c.destination);
+  o.start(t);
+  lfo.start(t);
+  o.stop(t + 0.62);
+  lfo.stop(t + 0.62);
+}
+
+// "baa": a wobbly nasal note sliding down
+export function bleat() {
+  if (!sound.on || !sound.ctx) return;
+  const c = sound.ctx;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  o.type = 'sawtooth';
+  const base = 330 + Math.random() * 120;
+  o.frequency.setValueAtTime(base, t);
+  o.frequency.linearRampToValueAtTime(base * 0.85, t + 0.45);
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 13;
+  const depth = c.createGain();
+  depth.gain.value = base * 0.07;
+  lfo.connect(depth).connect(o.frequency);
+  const f = c.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.value = 1300;
+  f.Q.value = 2;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.12, t + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+  o.connect(f).connect(g).connect(c.destination);
+  o.start(t);
+  lfo.start(t);
+  o.stop(t + 0.52);
+  lfo.stop(t + 0.52);
+}
