@@ -55,6 +55,12 @@ export const MAPS = [
       { name: { ru: 'Проспект Достык', en: 'Dostyk Avenue' }, gate: { ru: 'ДОСТЫК', en: 'DOSTYK' } },
     ],
     traffic: { count: 70, oncoming: 0, min: 0.2, max: 0.46, kinds: [['sedan', 6], ['hatch', 3], ['suv', 2], ['bus', 1]], colors: CITY_COLORS },
+    fun: {
+      zones: [0, 1, 3],
+      walkers: 0.06,
+      props: [['tubeman', 0.006, { color: '#e8402f' }], ['tubeman', 0.004, { color: '#2f6fbf' }]],
+      cones: [[[1, 250], 7, 0.9], [[3, 100], 6, -0.9]],
+    },
     build(T) {
       T.zone().road(30, 60, 30, 0, 0).road(50, 50, 50, 2, 0).road(25, 40, 25, 0, 0).road(50, 50, 50, -2, 4).road(30, 60, 30, 0, -4).road(40, 40, 40, 3, 0);
       T.zone().road(50, 60, 50, -3, 10).road(30, 30, 30, 0, -6).road(40, 40, 40, 4, 8).road(30, 30, 30, -4, -6).road(40, 60, 40, 2, 10).road(30, 30, 30, -2, 0);
@@ -127,6 +133,12 @@ export const MAPS = [
       { name: { ru: 'Плотина', en: 'The dam' }, gate: { ru: 'ПЛОТИНА', en: 'THE DAM' } },
     ],
     traffic: { count: 34, oncoming: 0.45, min: 0.18, max: 0.38, kinds: [['sedan', 5], ['suv', 3], ['hatch', 2], ['bus', 1]], colors: CITY_COLORS },
+    fun: {
+      zones: [0, 2, 3],
+      walkers: 0.02,
+      hats: true,
+      props: [['snowman', 0.014]],
+    },
     build(T) {
       T.zone().road(40, 40, 40, 0, 10).road(40, 40, 40, 4, 20).road(30, 30, 30, -5, 15).road(30, 40, 30, 5, 15).road(30, 30, 30, -3, 10);
       T.zone().road(20, 20, 20, 0, 5).tunnel(true).road(20, 60, 20, 3, 10).tunnel(false).road(20, 30, 20, -4, 5).tunnel(true).road(30, 60, 30, -2, 10).tunnel(false).road(30, 30, 30, 5, 10);
@@ -194,6 +206,12 @@ export const MAPS = [
       { name: { ru: 'Талгарский перевал', en: 'Talgar pass' }, gate: { ru: 'ПЕРЕВАЛ', en: 'THE PASS' } },
     ],
     traffic: { count: 22, oncoming: 0.4, min: 0.18, max: 0.32, kinds: [['bus', 2], ['suv', 3], ['sedan', 2]], colors: ['#e8e8e8', '#2f6f9e', '#c0392b', '#30343c', '#7d8590'] },
+    fun: {
+      zones: [0, 1, 2],
+      walkers: 0.025,
+      hats: true,
+      props: [['snowman', 0.02]],
+    },
     build(T) {
       T.zone().road(40, 40, 40, 6, 20).road(30, 30, 30, -6, 20).road(30, 30, 30, 6, 20).road(30, 30, 30, -6, 15).road(30, 40, 30, 4, 10);
       T.zone().road(50, 80, 50, -2, 25).road(40, 60, 40, 3, 15).road(30, 30, 30, -4, 10);
@@ -258,6 +276,12 @@ export const MAPS = [
       { name: { ru: 'Берег', en: 'The shore' }, gate: { ru: 'БЕРЕГ', en: 'THE SHORE' } },
     ],
     traffic: { count: 40, oncoming: 0.5, min: 0.22, max: 0.42, kinds: [['truck', 4], ['sedan', 4], ['suv', 2], ['bus', 1]], colors: ['#e8e8e8', '#c0392b', '#2f6f9e', '#d9a33a', '#3a6b4a', '#7d8590', '#30343c'] },
+    fun: {
+      zones: [0, 1, 2],
+      walkers: 0.015,
+      props: [['melons', 0.009], ['tubeman', 0.002, { color: '#f2b705' }]],
+      cones: [[[2, 150], 6, 0.9]],
+    },
     build(T) {
       T.zone().road(50, 100, 50, 0, 0).road(40, 40, 40, 2, 15).road(40, 40, 40, 0, -15).road(50, 50, 50, -2, 0);
       T.zone().road(40, 80, 40, 1, 20).road(40, 40, 40, 0, -25).road(40, 40, 40, 0, 15).road(40, 60, 40, -1, -10).road(30, 30, 30, 3, 0);
@@ -321,6 +345,13 @@ export const MAPS = [
       { name: { ru: 'Ясеневая роща', en: 'Ash grove' }, gate: { ru: 'ЯСЕНЕВАЯ РОЩА', en: 'ASH GROVE' } },
     ],
     traffic: { count: 18, oncoming: 0.5, min: 0.2, max: 0.4, kinds: [['suv', 3], ['sedan', 2], ['bus', 1]], colors: ['#e8e8e8', '#30343c', '#c9b458', '#2f6f9e', '#8c4a3a'] },
+    fun: {
+      zones: [0, 2],
+      walkers: 0.018,
+      hats: true,
+      props: [],
+      cones: [[[0, 200], 6, 0.9], [[1, 300], 5, -0.9]],
+    },
     build(T) {
       T.zone().road(50, 60, 50, 0, 0).road(40, 40, 40, 3, -20).road(40, 40, 40, -3, 20).road(40, 40, 40, 0, 0);
       T.zone().road(30, 30, 30, -5, -30).road(30, 40, 30, 5, 10).road(30, 30, 30, -6, 15).road(30, 30, 30, 4, -10).road(40, 40, 40, -2, 15);
@@ -425,6 +456,12 @@ export const FRIENDS = [
 
 export const CARS = [
   { id: 'hatch', kind: 'hatch', color: '#d7263d', stars: 0, stats: { speed: 1, accel: 1, grip: 1, offroad: 1 } },
-  { id: 'niva', kind: 'niva', color: '#3f6b4a', stars: 4, stats: { speed: 0.92, accel: 0.95, grip: 1.1, offroad: 2.2 } },
+  { id: 'camry', kind: 'sedan', color: '#e9e9ea', stars: 0, stats: { speed: 1.03, accel: 0.95, grip: 1.05, offroad: 0.9 } },
+  { id: 'lada', kind: 'lada', color: '#c9b458', stars: 0, stats: { speed: 0.88, accel: 0.86, grip: 0.95, offroad: 1.5 } },
+  { id: 'niva', kind: 'niva', color: '#3f6b4a', stars: 0, stats: { speed: 0.92, accel: 0.95, grip: 1.1, offroad: 2.2 } },
+  { id: 'gelik', kind: 'gelik', color: '#1d1f24', stars: 5, stats: { speed: 0.98, accel: 1.08, grip: 0.95, offroad: 2 } },
   { id: 'sport', kind: 'sport', color: '#f2b705', stars: 9, stats: { speed: 1.12, accel: 1.2, grip: 0.82, offroad: 0.8 } },
+  { id: 'electric', kind: 'electric', color: '#2f5fbf', stars: 12, electric: true, stats: { speed: 1.08, accel: 1.45, grip: 1, offroad: 0.85 } },
 ];
+
+export const PAINTS = ['#d7263d', '#e9e9ea', '#1d1f24', '#9aa3ad', '#2f5fbf', '#18a39a', '#2f7d4f', '#c9b458', '#f2b705', '#f08a24', '#7d3c98', '#e86a9a'];

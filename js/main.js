@@ -1,10 +1,12 @@
 import { clamp, wrap, overlap, store, el } from './util.js';
 import { t, L, km, clock, getLang, setLang } from './i18n.js';
-import { MAPS, CHAPTERS, CARS, FRIENDS, mapById } from './maps.js';
+import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, engine, beep, noise, fanfare } from './audio.js';
+import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk } from './audio.js';
+import { music, playMusic, setMusic, pauseMusic } from './music.js';
+import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -12,7 +14,16 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
 // ---------- progress ----------
 
-const progress = Object.assign({ stars: {}, times: {}, best: {}, car: 'hatch', map: 'city' }, store.get('asem.progress', {}));
+const progress = Object.assign({ stars: {}, times: {}, best: {}, paint: {}, car: 'hatch', map: 'city' }, store.get('asem.progress', {}));
+if (!progress.paint) progress.paint = {};
+{
+  // a friend's invite link: asemface.com/?group=code
+  const invited = new URLSearchParams(location.search).get('group');
+  if (invited && /^[a-z0-9]{4,12}$/i.test(invited)) {
+    progress.group = invited.toLowerCase();
+    store.set('asem.progress', progress);
+  }
+}
 const oldBest = store.get('asem.best', 0);
 if (oldBest && !progress.best.city) progress.best.city = oldBest;
 const saveProgress = () => store.set('asem.progress', progress);
@@ -21,9 +32,11 @@ const totalStars = () => CHAPTERS.reduce((a, ch, i) => a + (progress.stars[i] ||
 const chapterOpen = (i) => i === 0 || (progress.stars[i - 1] || 0) > 0;
 const mapOpen = (id) => id === 'city' || CHAPTERS.some((ch, i) => ch.map === id && chapterOpen(i));
 const carOpen = (car) => totalStars() >= car.stars;
+const carColor = (car) => progress.paint[car.id] || car.color;
 const currentCar = () => {
-  const car = CARS.find((c) => c.id === progress.car) || CARS[0];
-  return carOpen(car) ? car : CARS[0];
+  let car = CARS.find((c) => c.id === progress.car) || CARS[0];
+  if (!carOpen(car)) car = CARS[0];
+  return { ...car, color: carColor(car) };
 };
 
 const tracks = {};
@@ -70,6 +83,7 @@ function setMap(id) {
   g.track = getTrack(id);
   renderer.setMap(g.map);
   populate(99);
+  if (audioUnlocked) playMusic(id, racingNow() ? 1 : 0);
   g.position = 0;
   g.playerX = g.track.lanes === 2 ? 0.5 : 0;
   g.autoLane = null;
@@ -208,6 +222,7 @@ function update(dt) {
       const limit = (BASE_MAX / 4) * st.offroad;
       if (g.speed > limit) g.speed -= (BASE_MAX / 2 / st.offroad) * dt;
       for (const s of pSeg.sprites) {
+        if (s.def.walker || s.def.breakable) continue;
         const sw = (s.w || s.def.w) / ROAD_W;
         const center = s.offset + (s.offset > 0 ? sw / 2 : -sw / 2);
         if (overlap(g.playerX, PLAYER_W, center, sw * s.def.hit)) {
@@ -234,6 +249,8 @@ function update(dt) {
       }
     }
   }
+
+  funStuff(T, pSeg, dt);
 
   // close calls charge the nitro
   if (g.mode === 'play') {
@@ -316,6 +333,77 @@ function update(dt) {
   if (g.flash > 0) g.flash = Math.max(0, g.flash - dt * 3);
 }
 
+// people next to the road dive out of the way; cones, snowmen, inflatable men and melon stalls fly
+const animating = new Set();
+let screamCool = 0;
+function funStuff(T, pSeg, dt) {
+  const N = T.segments.length;
+  screamCool -= dt;
+  const racing = g.mode === 'play' || g.mode === 'ending';
+  if (racing && g.speed > BASE_MAX * 0.2) {
+    for (let n = 0; n <= 26; n++) {
+      const seg = T.segments[(pSeg.i + n) % N];
+      for (const s of seg.sprites) {
+        if (!s.def.walker || s.dodge) continue;
+        if (Math.abs(s.offset - g.playerX) > 0.62) continue;
+        s.dodge = true;
+        s.t0 = g.time;
+        s.dir = s.offset > g.playerX ? 1 : -1;
+        const phrases = t('screams');
+        s.say = phrases[Math.floor(Math.random() * phrases.length)];
+        s.sayUntil = g.time + 1.4;
+        animating.add(s);
+        if (screamCool <= 0) {
+          scream();
+          screamCool = 0.35;
+        }
+      }
+    }
+    for (let n = 0; n <= 1; n++) {
+      const seg = T.segments[(pSeg.i + n) % N];
+      for (const s of seg.sprites) {
+        if (!s.def.breakable || s.fly) continue;
+        const sw = (s.w || s.def.w) / ROAD_W;
+        const center = s.offset + (s.offset > 0 ? sw / 2 : -sw / 2);
+        if (!overlap(g.playerX, PLAYER_W, center, sw * s.def.hit)) continue;
+        s.fly = true;
+        s.t0 = g.time;
+        s.dir = center >= g.playerX ? 1 : -1;
+        s.spin = (Math.random() * 6 + 4) * s.dir;
+        animating.add(s);
+        bonk(s.def.breakable);
+        g.nitro = Math.min(1, g.nitro + 0.04);
+        g.shake = Math.max(g.shake, 0.3);
+        if (g.speed > BASE_MAX * 0.4) g.speed -= BASE_MAX * 0.04;
+      }
+    }
+  }
+  for (const s of animating) {
+    const k = g.time - s.t0;
+    if (s.fly) {
+      s.offset = s.base + s.dir * k * 2.4;
+      s.lift = Math.max(0, 3400 * k - 2400 * k * k);
+      s.rot = s.spin * k;
+      s.alpha = Math.max(0, Math.min(1, 1.8 - k));
+      if (k > 1.8) {
+        s.gone = true;
+        animating.delete(s);
+      }
+    } else {
+      // jump sideways, land on the back, get up and stand there shaking
+      const p = Math.min(1, k / 0.45);
+      s.offset = s.base + s.dir * 1.1 * (1 - (1 - p) * (1 - p));
+      s.lift = Math.sin(p * Math.PI) * 420;
+      s.rot = k < 1.4 ? s.dir * Math.min(1.45, p * 1.6) : s.dir * Math.max(0, 1.45 - (k - 1.4) * 2.4);
+      if (k > 2.2) {
+        s.rot = 0;
+        s.lift = 0;
+        animating.delete(s);
+      }
+    }
+  }
+}
+
 function enterZone(z) {
   const T = g.track;
   if (g.kind === 'story' && z === 0) {
@@ -369,6 +457,10 @@ function startRace(opts) {
   setMap(mapId);
   const T = g.track;
   populate((Date.now() & 0xffff) + 1);
+  T.resetDynamic();
+  animating.clear();
+  unlockAudio();
+  playMusic(mapId, 1);
   for (const c of T.cars) c.rel = null;
   Object.assign(g, {
     position: 0,
@@ -399,12 +491,14 @@ function pause() {
   if (g.mode !== 'play' && g.mode !== 'countdown') return;
   pausedFrom = g.mode;
   g.mode = 'paused';
+  pauseMusic(true);
   clearInputs();
   screenPause();
 }
 function resume() {
   if (g.mode !== 'paused') return;
   g.mode = pausedFrom;
+  pauseMusic(false);
   ui.replaceChildren();
   showHud(true);
 }
@@ -416,8 +510,21 @@ function toMenu(screen = screenMain) {
     g.speed = Math.max(g.speed, BASE_MAX * 0.3);
   }
   showHud(false);
+  if (audioUnlocked) playMusic(g.map.id, 0);
   screen();
 }
+
+// browsers only allow sound after the first tap or key press
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  audioInit();
+  playMusic(g.map.id, racingNow() ? 1 : 0);
+}
+const racingNow = () => ['countdown', 'play', 'ending', 'finish'].includes(g.mode);
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ---------- HUD ----------
 
@@ -538,7 +645,17 @@ function screen(fn) {
 
 const screenMain = screen(() => {
   const top = el('div', 'panel-top');
-  top.append(el('span', 'mark'), langs());
+  const mus = el('button', 'chip-btn', music.on ? '♪ ' + t('musicOn') : '♪ ' + t('musicOff'));
+  mus.type = 'button';
+  mus.setAttribute('aria-pressed', String(music.on));
+  mus.addEventListener('click', () => {
+    unlockAudio();
+    toggleMusic();
+    screenMain();
+  });
+  const right = el('div', 'top-right');
+  right.append(mus, langs());
+  top.append(el('span', 'mark'), right);
   const doneAll = CHAPTERS.every((ch, i) => progress.stars[i]);
   const nextCh = CHAPTERS.findIndex((ch, i) => !progress.stars[i]);
   const menu = el('div', 'menu');
@@ -553,6 +670,7 @@ const screenMain = screen(() => {
     item(t('story'), doneAll ? t('storyDoneSub', { s: totalStars(), m: CHAPTERS.length * 3 }) : t('storySub', { n: nextCh + 1, m: CHAPTERS.length }), true, () => screenChapters()),
     item(t('free'), t('freeSub'), false, () => screenMaps()),
     item(t('garage'), t('car_' + currentCar().id), false, () => screenGarage()),
+    item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
   );
   panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), (() => {
     const a = el('a', 'more', t('more'));
@@ -617,38 +735,80 @@ const screenMaps = screen(() => {
   panel('wide', head(t('free'), () => screenMain()), list);
 });
 
+let garageView = null;
 const screenGarage = screen(() => {
-  const list = el('div', 'garage');
-  for (const car of CARS) {
-    const open = carOpen(car);
-    const sel = currentCar().id === car.id;
-    const row = el('div', 'car' + (sel ? ' selected' : ''));
-    const cv = el('canvas', 'car-pic');
-    cv.width = 240;
-    cv.height = 150;
-    paintCar(cv, car, open);
-    const body = el('div', 'car-body');
-    body.append(el('b', '', t('car_' + car.id)), el('p', 'car-note', t('car_' + car.id + '_note')));
-    const stats = el('dl', 'car-stats');
-    for (const key of ['speed', 'accel', 'grip', 'offroad']) {
-      const v = car.stats[key];
-      const level = clamp(Math.round(key === 'offroad' ? 1 + v * 1.5 : (v - 0.7) * 10), 1, 5);
-      const bar = el('dd', 'bar');
-      for (let k = 0; k < 5; k++) bar.append(el('i', k < level ? 'on' : ''));
-      stats.append(el('dt', '', t('stat_' + key)), bar);
-    }
-    body.append(stats);
-    if (!open) body.append(el('span', 'lock', t('lockedStars', { n: car.stars })));
-    else if (sel) body.append(el('span', 'picked', t('selected')));
-    else body.append(btn(t('choose'), '', () => {
-      progress.car = car.id;
+  const chosen = currentCar();
+  const view = CARS.find((c) => c.id === garageView) || CARS.find((c) => c.id === chosen.id);
+  const open = carOpen(view);
+  const color = carColor(view);
+
+  const show = el('div', 'showcase');
+  const big = el('canvas', 'car-big');
+  big.width = 520;
+  big.height = 260;
+  paintCar(big, { ...view, color }, open);
+  const info = el('div', 'car-body');
+  info.append(el('b', '', t('car_' + view.id)), el('p', 'car-note', t('car_' + view.id + '_note')));
+  const stats = el('dl', 'car-stats');
+  for (const key of ['speed', 'accel', 'grip', 'offroad']) {
+    const v = view.stats[key];
+    const lvl = clamp(Math.round(key === 'offroad' ? 1 + v * 1.5 : key === 'accel' ? (v - 0.7) * 7 : (v - 0.7) * 10), 1, 5);
+    const bar = el('dd', 'bar');
+    for (let k = 0; k < 5; k++) bar.append(el('i', k < lvl ? 'on' : ''));
+    stats.append(el('dt', '', t('stat_' + key)), bar);
+  }
+  info.append(stats);
+  if (!open) {
+    info.append(el('span', 'lock', t('lockedStars', { n: view.stars })));
+  } else {
+    const paints = el('div', 'paints');
+    paints.setAttribute('role', 'group');
+    paints.setAttribute('aria-label', t('paint'));
+    PAINTS.forEach((p, k) => {
+      const b = el('button', 'paint' + (p === color ? ' on' : ''));
+      b.type = 'button';
+      b.style.background = p;
+      b.setAttribute('aria-label', t('paint') + ' ' + (k + 1));
+      b.setAttribute('aria-pressed', String(p === color));
+      b.addEventListener('click', () => {
+        progress.paint[view.id] = p;
+        progress.car = view.id;
+        saveProgress();
+        screenGarage();
+      });
+      paints.append(b);
+    });
+    info.append(el('span', 'paint-label', t('paint')), paints);
+    if (chosen.id === view.id) info.append(el('span', 'picked', t('selected')));
+    else info.append(btn(t('choose'), 'primary', () => {
+      progress.car = view.id;
       saveProgress();
       screenGarage();
     }));
-    row.append(cv, body);
-    list.append(row);
   }
-  panel('wide', head(t('garage'), () => screenMain(), el('span', 'head-note', t('starsTotal', { n: totalStars(), m: CHAPTERS.length * 3 }))), list);
+  show.append(big, info);
+
+  const grid = el('div', 'car-grid');
+  for (const car of CARS) {
+    const tile = el('button', 'car-tile' + (car.id === view.id ? ' viewing' : '') + (car.id === chosen.id ? ' chosen' : ''));
+    tile.type = 'button';
+    const cv = el('canvas');
+    cv.width = 200;
+    cv.height = 110;
+    paintCar(cv, { ...car, color: carColor(car) }, carOpen(car));
+    tile.append(cv, el('span', '', t('car_' + car.id)));
+    if (!carOpen(car)) tile.append(el('small', 'lock', car.stars + ' ★'));
+    tile.addEventListener('click', () => {
+      garageView = car.id;
+      if (carOpen(car)) {
+        progress.car = car.id;
+        saveProgress();
+      }
+      screenGarage();
+    });
+    grid.append(tile);
+  }
+  panel('wide', head(t('garage'), () => { garageView = null; screenMain(); }, el('span', 'head-note', t('starsTotal', { n: totalStars(), m: CHAPTERS.length * 3 }))), show, grid);
 });
 
 function paintCar(cv, car, open) {
@@ -674,6 +834,167 @@ function paintCar(cv, car, open) {
   c.globalAlpha = 1;
 }
 
+// ---------- leaderboard ----------
+
+let scoreBoard = 'ch0';
+let scoreGroup = 'all';
+let boardToken = 0;
+
+function npcEntries(board) {
+  if (!board.startsWith('ch')) return [];
+  const ch = CHAPTERS[Number(board.slice(2))];
+  const segs = getTrack(ch.map).segments.length;
+  return FRIENDS.map((f, k) => ({ name: L(f.name), value: Math.round((segs / (60 * (0.695 + k * 0.025)) + 4) * 10) / 10, color: f.color, npc: true }));
+}
+
+function boardValue(board, v) {
+  return board.startsWith('ch') ? clock(v) : `${km(v)} ${t('km')}`;
+}
+
+function fillBoard(table, board, entries) {
+  const asc = board.startsWith('ch');
+  const rows = [...entries, ...npcEntries(board)].sort((a, b) => (asc ? a.value - b.value : b.value - a.value)).slice(0, 20);
+  table.replaceChildren();
+  rows.forEach((e, k) => {
+    const me = progress.nick && !e.npc && e.name.toLowerCase() === progress.nick.toLowerCase();
+    const li = el('li', 'row-entry' + (me ? ' me' : '') + (e.npc ? ' npc' : ''));
+    const dot = el('i', 'dot');
+    dot.style.background = e.color || '#888';
+    const name = el('span', 'who', e.name);
+    if (e.npc) name.append(el('small', '', t('bot')));
+    if (me) name.append(el('small', '', t('you')));
+    li.append(el('b', 'pos', String(k + 1)), dot, name, el('span', 'val', boardValue(board, e.value)));
+    table.append(li);
+  });
+  if (!rows.length) table.append(el('li', 'empty', t('boardEmpty')));
+}
+
+const screenScores = screen(() => {
+  const chip = (label, active, onClick) => {
+    const b = el('button', 'chip' + (active ? ' on' : ''), label);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(active));
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  if (scoreGroup !== 'all' && scoreGroup !== progress.group) scoreGroup = 'all';
+  const groups = el('div', 'chips');
+  groups.append(chip(t('groupAll'), scoreGroup === 'all', () => { scoreGroup = 'all'; screenScores(); }));
+  if (progress.group) groups.append(chip(t('groupMine', { g: progress.group }), scoreGroup === progress.group, () => { scoreGroup = progress.group; screenScores(); }));
+  else groups.append(chip(t('groupCreate'), false, () => {
+    progress.group = newGroupCode();
+    saveProgress();
+    scoreGroup = progress.group;
+    screenScores();
+  }));
+  const boards = el('div', 'chips boards');
+  CHAPTERS.forEach((ch, i) => boards.append(chip(t('chapterShort', { n: i + 1 }), scoreBoard === 'ch' + i, () => { scoreBoard = 'ch' + i; screenScores(); })));
+  MAPS.forEach((m) => boards.append(chip(L(m.name), scoreBoard === 'free-' + m.id, () => { scoreBoard = 'free-' + m.id; screenScores(); })));
+
+  const table = el('ol', 'board');
+  const status = el('p', 'board-note', '');
+  fillBoard(table, scoreBoard, []);
+  if (online()) {
+    const token = ++boardToken;
+    status.textContent = t('boardLoading');
+    getBoard(scoreBoard, scoreGroup).then((res) => {
+      if (token !== boardToken) return;
+      status.textContent = '';
+      fillBoard(table, scoreBoard, res.entries || []);
+    }).catch(() => {
+      if (token === boardToken) status.textContent = t('boardError');
+    });
+  } else {
+    status.textContent = t('boardOffline');
+  }
+
+  const nameBox = el('div', 'name-box');
+  const label = el('label', '', t('yourName'));
+  label.htmlFor = 'nickInput';
+  const input = el('input');
+  input.id = 'nickInput';
+  input.maxLength = 16;
+  input.autocomplete = 'nickname';
+  input.value = progress.nick || '';
+  const saved = el('span', 'note', '');
+  const saveBtn = btn(t('save'), '', () => {
+    const v = input.value.replace(/\s+/g, ' ').trim().slice(0, 16);
+    if (v.length < 2) { saved.textContent = t('nameHint'); return; }
+    progress.nick = v;
+    saveProgress();
+    saved.textContent = t('saved');
+  });
+  const line = el('div', 'row');
+  line.append(input, saveBtn);
+  nameBox.append(label, line, el('small', 'hint', t('nameHint')), saved);
+
+  let invite = null;
+  if (progress.group) {
+    invite = el('div', 'row');
+    const note = el('p', 'note', '');
+    invite.append(btn(t('groupInvite'), 'primary', async () => {
+      const link = `https://asemface.com/?group=${progress.group}`;
+      try {
+        if (navigator.share) await navigator.share({ title: 'Әсем Жол', text: t('groupMine', { g: progress.group }), url: link });
+        else {
+          await navigator.clipboard.writeText(link);
+          note.textContent = t('groupLink');
+        }
+      } catch {
+        note.textContent = link;
+      }
+    }), btn(t('groupLeave'), 'ghost', () => {
+      progress.group = null;
+      saveProgress();
+      scoreGroup = 'all';
+      screenScores();
+    }), note);
+  }
+  panel('wide', head(t('records'), () => screenMain()), groups, boards, table, status, nameBox, invite);
+});
+
+// sends a result after a race; asks for a name the first time
+function scoreBox(board, value) {
+  if (!online()) return null;
+  const box = el('div', 'send-box');
+  const status = el('p', 'note', '');
+  const send = async (name) => {
+    status.textContent = t('sending');
+    try {
+      const car = currentCar();
+      const res = await submit({ b: board, g: progress.group || 'all', name, value, car: car.id, color: car.color });
+      const all = res.results.all;
+      let text = all && all.rank ? t('sent', { n: all.rank }) : t('sentOff');
+      const grp = progress.group && res.results[progress.group];
+      if (grp && grp.rank) text += ', ' + t('sentGroup', { n: grp.rank });
+      status.textContent = text;
+    } catch {
+      status.textContent = t('sendFail');
+    }
+  };
+  if (progress.nick) {
+    box.append(status);
+    send(progress.nick);
+    return box;
+  }
+  const input = el('input');
+  input.maxLength = 16;
+  input.placeholder = t('yourName');
+  input.setAttribute('aria-label', t('yourName'));
+  const go = btn(t('send'), 'primary', () => {
+    const v = input.value.replace(/\s+/g, ' ').trim().slice(0, 16);
+    if (v.length < 2) { status.textContent = t('nameHint'); return; }
+    progress.nick = v;
+    saveProgress();
+    line.remove();
+    send(v);
+  });
+  const line = el('div', 'row');
+  line.append(input, go);
+  box.append(el('small', 'hint', t('yourName')), line, status);
+  return box;
+}
+
 const screenPause = screen(() => {
   panel('', el('h2', '', t('paused')), (() => {
     const row = el('div', 'row');
@@ -684,6 +1005,7 @@ const screenPause = screen(() => {
 
 function showFinish() {
   showHud(false);
+  playMusic(g.map.id, 0);
   const i = g.chapter;
   const ch = CHAPTERS[i];
   const r = g.result;
@@ -693,12 +1015,14 @@ function showFinish() {
   const note = el('p', 'note', '');
   note.id = 'shareNote';
   currentScreen = null;
-  panel('', el('h2', '', L(ch.title)), starsRow(r.stars), el('p', 'over-dist', clock(r.time)), el('p', r.place === 1 ? 'record' : 'best', r.place === 1 ? t('firstPlace') : t('finishPlace', { n: r.place, m: FRIENDS.length + 1 })), r.best && progress.times[i] === r.time && r.prevStars ? el('p', 'record', t('record')) : null, el('p', 'tag', L(ch.outro)), i + 1 === CHAPTERS.length ? el('p', 'note', t('storyEnd')) : null, row, note);
+  const sendBox = r.best ? scoreBox(boardId('story', i), Math.round(r.time * 100) / 100) : null;
+  panel('', el('h2', '', L(ch.title)), starsRow(r.stars), el('p', 'over-dist', clock(r.time)), el('p', r.place === 1 ? 'record' : 'best', r.place === 1 ? t('firstPlace') : t('finishPlace', { n: r.place, m: FRIENDS.length + 1 })), r.best && progress.times[i] === r.time && r.prevStars ? el('p', 'record', t('record')) : null, el('p', 'tag', L(ch.outro)), i + 1 === CHAPTERS.length ? el('p', 'note', t('storyEnd')) : null, sendBox, row, note);
 }
 
 function showFail() {
   g.mode = 'fail';
   showHud(false);
+  playMusic(g.map.id, 0);
   const row = el('div', 'row');
   row.append(btn(t('again'), 'primary', () => startRace(g.last)), btn(t('menu'), 'ghost', () => toMenu()));
   currentScreen = null;
@@ -708,6 +1032,7 @@ function showFail() {
 function showOver() {
   g.mode = 'over';
   showHud(false);
+  playMusic(g.map.id, 0);
   const id = g.map.id;
   const isRecord = g.distance > (progress.best[id] || 0) + 0.0001;
   if (isRecord) {
@@ -719,7 +1044,8 @@ function showOver() {
   const note = el('p', 'note', '');
   note.id = 'shareNote';
   currentScreen = null;
-  panel('', el('h2', '', t('overTitle')), el('p', 'over-label', `${L(g.map.name)}. ${t('overSub')}`), el('p', 'over-dist', `${km(g.distance)} ${t('km')}`), isRecord ? el('p', 'record', t('record')) : null, el('p', 'best', t('best', { d: km(progress.best[id]) })), row, note);
+  const sendBox = isRecord && g.distance >= 0.2 ? scoreBox(boardId('free', id), Math.round(g.distance * 100) / 100) : null;
+  panel('', el('h2', '', t('overTitle')), el('p', 'over-label', `${L(g.map.name)}. ${t('overSub')}`), el('p', 'over-dist', `${km(g.distance)} ${t('km')}`), isRecord ? el('p', 'record', t('record')) : null, el('p', 'best', t('best', { d: km(progress.best[id]) })), sendBox, row, note);
 }
 
 async function share() {
@@ -849,6 +1175,8 @@ for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
 }
 window.addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pauseMusic(true);
+  else if (g.mode !== 'paused') pauseMusic(false);
   if (document.hidden) pause();
 });
 
@@ -857,6 +1185,12 @@ function toggleSound() {
   $('muteBtn').textContent = sound.on ? t('soundOn') : t('soundOff');
 }
 $('pauseBtn').addEventListener('click', () => (g.mode === 'paused' ? resume() : pause()));
+function toggleMusic() {
+  setMusic(!music.on);
+  if (music.on) playMusic(g.map.id, racingNow() ? 1 : 0);
+  $('musicBtn').setAttribute('aria-pressed', String(music.on));
+}
+$('musicBtn').addEventListener('click', toggleMusic);
 $('muteBtn').addEventListener('click', toggleSound);
 
 function applyLang() {
@@ -864,6 +1198,8 @@ function applyLang() {
   document.title = t('title');
   $('muteBtn').textContent = sound.on ? t('soundOn') : t('soundOff');
   $('pauseBtn').setAttribute('aria-label', t('pause'));
+  $('musicBtn').setAttribute('aria-label', t('musicOn'));
+  $('musicBtn').setAttribute('aria-pressed', String(music.on));
   nitroBtn.setAttribute('aria-label', t('nitroBtn'));
   for (const k of Object.keys(thumbs)) delete thumbs[k];
 }
@@ -912,11 +1248,12 @@ function frame(now) {
   view.dt = g.mode === 'paused' ? 0 : dt;
   renderer.render(view);
   updateHud();
-  engine(g.speed / BASE_MAX, ['play', 'countdown', 'ending', 'finish'].includes(g.mode), g.boosting);
+  engine(g.speed / BASE_MAX, ['play', 'countdown', 'ending', 'finish'].includes(g.mode), g.boosting, currentCar().electric);
   requestAnimationFrame(frame);
 }
 
 setMap(mapOpen(progress.map) ? progress.map : 'city');
+flushPending();
 resize();
 applyLang();
 toMenu();

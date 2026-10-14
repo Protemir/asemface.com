@@ -361,6 +361,7 @@ export class Renderer {
   }
 
   drawSprite(s, scale, x, y, offX, clipY, alpha, env) {
+    if (s.gone) return;
     const def = s.def;
     const dw = (s.w || def.w) * scale * this.FX;
     const dh = (s.h || def.h) * scale * this.FX;
@@ -368,8 +369,16 @@ export class Renderer {
     const dy = y - dh;
     if (dw < 0.8 || dx > this.W || dx + dw < 0 || dy >= clipY) return;
     const c = this.ctx;
-    c.globalAlpha = alpha;
-    if (dy + dh > clipY) this.withClip(clipY, () => def.draw(c, dx, dy, dw, dh, s, env));
+    c.globalAlpha = alpha * (s.alpha ?? 1);
+    if (s.lift || s.rot) {
+      // tumbling through the air: lift it up and spin it around its middle
+      const lift = (s.lift || 0) * scale * this.FX;
+      c.save();
+      c.translate(dx + dw / 2, dy + dh / 2 - lift);
+      c.rotate(s.rot || 0);
+      def.draw(c, -dw / 2, -dh / 2, dw, dh, s, env);
+      c.restore();
+    } else if (dy + dh > clipY) this.withClip(clipY, () => def.draw(c, dx, dy, dw, dh, s, env));
     else def.draw(c, dx, dy, dw, dh, s, env);
     c.globalAlpha = 1;
   }

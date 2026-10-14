@@ -37,6 +37,7 @@ export class Track {
     const r = rng(map.seed || 1);
     for (const seg of this.segments) map.decorate(this, seg, r);
     for (const [i, type, offset, extra] of map.extras ? map.extras(this) : []) this.addSprite(i, type, offset, extra, true);
+    if (map.fun) this.placeFun(map.fun, r);
     for (let z = 0; z < this.zoneStart.length; z++) {
       const seg = this.segments[this.zoneStart[z] + GATE_AT];
       seg.gate = z + 1;
@@ -44,6 +45,22 @@ export class Track {
     }
     this.light();
     this.paint();
+    this.dynamic = [];
+    for (const seg of this.segments) {
+      for (const s of seg.sprites) {
+        if (s.def.walker || s.def.breakable) {
+          s.base = s.offset;
+          this.dynamic.push(s);
+        }
+      }
+    }
+    this.resetDynamic();
+  }
+
+  resetDynamic() {
+    for (const s of this.dynamic) {
+      Object.assign(s, { offset: s.base, t0: 0, fly: false, gone: false, dodge: false, say: null, sayUntil: 0, lift: 0, rot: 0, alpha: 1 });
+    }
   }
 
   // ---------- builder API used by maps ----------
@@ -100,6 +117,45 @@ export class Track {
       seg.sprites = seg.sprites.filter((s) => Math.sign(s.offset) !== Math.sign(offset) || Math.abs(Math.abs(s.offset) - Math.abs(offset)) > 0.9);
     }
     seg.sprites.push({ def, type, offset, ...extra });
+  }
+
+  // people on the pavements and things to knock over
+  placeFun(fun, r) {
+    const coats = ['#3a4a6a', '#7a3a3a', '#2f5a4a', '#8a6a3a', '#4a4a4a', '#6a4a8a', '#b03a3a', '#2f6fbf'];
+    const pants = ['#2a2d35', '#3a3428', '#1f2a3a', '#4a3a2a'];
+    const hats = ['#c0392b', '#2f5fbf', '#f2b705', '#e8e8e8', '#18a39a'];
+    for (const seg of this.segments) {
+      if (seg.tunnel || !fun.zones.includes(seg.zone)) continue;
+      if (r() < fun.walkers) {
+        const side = r() < 0.5 ? -1 : 1;
+        seg.sprites.push({
+          def: SPRITES.walker,
+          type: 'walker',
+          offset: side * (1.3 + r() * 0.35),
+          coat: coats[Math.floor(r() * coats.length)],
+          pants: pants[Math.floor(r() * pants.length)],
+          hat: fun.hats ? hats[Math.floor(r() * hats.length)] : (r() < 0.15 ? '#3a3a3a' : null),
+          phase: r() * 6,
+        });
+      }
+      for (const [type, chance, extra] of fun.props || []) {
+        if (r() < chance) {
+          const side = r() < 0.5 ? -1 : 1;
+          // clear the shoulder around it, so driving at it ends in a laugh and not in a lamp post
+          for (let d = -3; d <= 2; d++) {
+            const near = this.segments[wrap(seg.i + d, this.segments.length)];
+            near.sprites = near.sprites.filter((s) => s.def.walker || s.def.breakable || Math.sign(s.offset) !== side || Math.abs(s.offset) > 1.9);
+          }
+          seg.sprites.push({ def: SPRITES[type], type, offset: side * (1.22 + r() * 0.25), phase: r() * 6, ...(extra || {}) });
+        }
+      }
+    }
+    for (const [start, count, offset] of fun.cones || []) {
+      for (let k = 0; k < count; k++) {
+        const seg = this.segments[wrap(this.zoneStart[start[0]] + start[1] + k * 3, this.segments.length)];
+        seg.sprites.push({ def: SPRITES.cone, type: 'cone', offset });
+      }
+    }
   }
 
   segAt(z) {

@@ -39,6 +39,9 @@ export const VEHICLES = {
   suv: { ratio: 0.8, scale: 1.05, roof: 0.0, inset: 0.14, body: 0.44 },
   niva: { ratio: 0.8, scale: 0.98, roof: 0.0, inset: 0.1, body: 0.46 },
   sport: { ratio: 0.5, scale: 1.04, roof: 0.16, inset: 0.3, body: 0.46 },
+  lada: { ratio: 0.64, scale: 0.96, roof: 0.06, inset: 0.17, body: 0.44, light: 'square', chrome: true },
+  gelik: { ratio: 0.92, scale: 1.08, roof: 0.0, inset: 0.05, body: 0.5, spare: true },
+  electric: { ratio: 0.56, scale: 1.02, roof: 0.12, inset: 0.27, body: 0.46, light: 'bar' },
   truck: { ratio: 1.15, scale: 1.25 },
   bus: { ratio: 1.05, scale: 1.25 },
 };
@@ -111,11 +114,35 @@ export function drawVehicle(c, x, y, w, h, kind, color, o = {}) {
       c.fillRect(x + w * 0.73, y + h * (v.body + 0.06), w * 0.3, h * 0.2);
     }
     c.fillStyle = on ? '#ff4a3d' : '#b81f24';
-    c.fillRect(x + w * 0.03, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
-    c.fillRect(x + w * 0.77, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
+    if (v.light === 'bar') {
+      c.fillRect(x + w * 0.04, y + h * (v.body + 0.1), w * 0.92, h * 0.06);
+    } else if (v.light === 'square') {
+      c.fillRect(x + w * 0.03, y + h * (v.body + 0.08), w * 0.22, h * 0.14);
+      c.fillRect(x + w * 0.75, y + h * (v.body + 0.08), w * 0.22, h * 0.14);
+      c.fillStyle = '#e8a33d';
+      c.fillRect(x + w * 0.03, y + h * (v.body + 0.08), w * 0.07, h * 0.14);
+      c.fillRect(x + w * 0.9, y + h * (v.body + 0.08), w * 0.07, h * 0.14);
+    } else {
+      c.fillRect(x + w * 0.03, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
+      c.fillRect(x + w * 0.77, y + h * (v.body + 0.1), w * 0.2, h * 0.09);
+    }
+    if (v.chrome && w > 14) {
+      c.fillStyle = '#c9ced6';
+      c.fillRect(x - w * 0.01, y + h * 0.74, w * 1.02, h * 0.05);
+    }
+    if (v.spare && w > 14) {
+      c.fillStyle = '#121418';
+      c.beginPath();
+      c.arc(x + w / 2, y + h * (v.body + 0.13), w * 0.15, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.18)';
+      c.beginPath();
+      c.arc(x + w / 2, y + h * (v.body + 0.13), w * 0.07, 0, Math.PI * 2);
+      c.fill();
+    }
     if (w > 30) {
       c.fillStyle = '#d9dde3';
-      c.fillRect(x + w * 0.4, y + h * 0.62, w * 0.2, h * 0.08);
+      c.fillRect(x + w * 0.4, y + h * (v.spare ? 0.8 : 0.62), w * 0.2, h * 0.08);
     }
     if (o.nitro && w > 10) {
       const fl = 0.6 + Math.random() * 0.6;
@@ -603,6 +630,183 @@ export const SPRITES = {
       c.beginPath();
       c.ellipse(x + w * 0.62, y + h * 0.36, w * 0.22, h * 0.2, 0, 0, Math.PI * 2);
       c.fill();
+    },
+  },
+
+  // ---------- the funny stuff: people who dive out of the way, things that fly ----------
+
+  walker: {
+    w: 240, h: 640, hit: 0, walker: true,
+    draw(c, x, y, w, h, s, env) {
+      const cx = x + w / 2;
+      const dark = env.night * 0.55;
+      const skin = mix('#e0b08c', '#6b5446', dark);
+      const coat = mix(s.coat, '#1a1d24', dark);
+      const pants = mix(s.pants, '#14161b', dark);
+      const scared = s.say && env.time < s.sayUntil;
+      // legs, a step apart while walking
+      const stride = scared ? 0.18 : Math.sin(env.time * 7 + (s.phase || 0)) * 0.08;
+      c.fillStyle = pants;
+      c.fillRect(cx - w * (0.17 + stride), y + h * 0.62, w * 0.14, h * 0.38);
+      c.fillRect(cx + w * (0.03 + stride), y + h * 0.62, w * 0.14, h * 0.38);
+      // body and arms (arms up when scared)
+      c.fillStyle = coat;
+      c.fillRect(cx - w * 0.24, y + h * 0.28, w * 0.48, h * 0.38);
+      if (scared) {
+        c.fillRect(cx - w * 0.42, y + h * 0.05, w * 0.12, h * 0.28);
+        c.fillRect(cx + w * 0.3, y + h * 0.05, w * 0.12, h * 0.28);
+      } else {
+        c.fillRect(cx - w * 0.36, y + h * 0.3, w * 0.12, h * 0.3);
+        c.fillRect(cx + w * 0.24, y + h * 0.3, w * 0.12, h * 0.3);
+      }
+      c.fillStyle = skin;
+      c.beginPath();
+      c.arc(cx, y + h * 0.18, w * 0.2, 0, Math.PI * 2);
+      c.fill();
+      if (s.hat) {
+        c.fillStyle = mix(s.hat, '#1a1d24', dark);
+        c.fillRect(cx - w * 0.22, y + h * 0.05, w * 0.44, h * 0.08);
+      }
+      if (scared && w > 6) {
+        c.fillStyle = '#20232b';
+        c.beginPath();
+        c.ellipse(cx, y + h * 0.22, w * 0.06, h * 0.035, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+      if (scared && w > 9) {
+        // speech bubble
+        const size = Math.max(9, Math.min(26, w * 0.55));
+        c.font = `800 ${size}px ${SANS}`;
+        const tw = c.measureText(s.say).width;
+        const bw = tw + size * 0.9;
+        const bh = size * 1.5;
+        const bx = cx - bw / 2;
+        const by = y - bh - h * 0.06;
+        c.fillStyle = '#ffffff';
+        roundRect(c, bx, by, bw, bh, bh / 2.4);
+        c.fill();
+        tri(c, cx - size * 0.3, by + bh - 1, cx + size * 0.2, by + bh - 1, cx - size * 0.1, by + bh + size * 0.5);
+        c.fillStyle = '#16181d';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(s.say, cx, by + bh / 2 + 0.5);
+      }
+    },
+  },
+  tubeman: {
+    w: 560, h: 1800, hit: 0.5, breakable: 'boing',
+    draw(c, x, y, w, h, s, env) {
+      const cx = x + w / 2;
+      const color = mix(s.color || '#e8402f', '#3a1a1a', env.night * 0.5);
+      c.fillStyle = '#2b2f38';
+      c.fillRect(cx - w * 0.22, y + h * 0.92, w * 0.44, h * 0.08);
+      // a wavy tube that dances
+      const t = env.time * 5 + (s.phase || 0);
+      c.strokeStyle = color;
+      c.lineCap = 'round';
+      c.lineWidth = Math.max(2, w * 0.24);
+      c.beginPath();
+      c.moveTo(cx, y + h * 0.92);
+      for (let k = 1; k <= 8; k++) {
+        const p = k / 8;
+        c.lineTo(cx + Math.sin(t + p * 3) * w * 0.22 * p, y + h * (0.92 - p * 0.8));
+      }
+      c.stroke();
+      const hx = cx + Math.sin(t + 3) * w * 0.22;
+      const hy = y + h * 0.12;
+      c.lineWidth = Math.max(1, w * 0.1);
+      c.beginPath();
+      c.moveTo(hx, y + h * 0.3);
+      c.lineTo(hx - w * 0.45, y + h * (0.22 + Math.sin(t * 1.3) * 0.12));
+      c.moveTo(hx, y + h * 0.3);
+      c.lineTo(hx + w * 0.45, y + h * (0.22 + Math.cos(t * 1.1) * 0.12));
+      c.stroke();
+      if (w > 10) {
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.arc(hx - w * 0.05, hy, w * 0.04, 0, Math.PI * 2);
+        c.arc(hx + w * 0.05, hy, w * 0.04, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#16181d';
+        c.fillRect(hx - w * 0.06, hy + h * 0.035, w * 0.12, Math.max(1, h * 0.012));
+      }
+    },
+  },
+  snowman: {
+    w: 600, h: 800, hit: 0.6, breakable: 'thud',
+    draw(c, x, y, w, h, s, env) {
+      const snow = mix('#f4f7fb', '#aab5c7', env.night);
+      const cx = x + w / 2;
+      c.fillStyle = snow;
+      for (const [cy, r] of [[0.78, 0.4], [0.47, 0.3], [0.2, 0.21]]) {
+        c.beginPath();
+        c.arc(cx, y + h * cy, w * r, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.fillStyle = '#e8762b';
+      tri(c, cx, y + h * 0.19, cx, y + h * 0.23, cx + w * 0.22, y + h * 0.21);
+      c.fillStyle = '#20232b';
+      c.fillRect(cx - w * 0.2, y + h * 0.02, w * 0.4, h * 0.04);
+      c.fillRect(cx - w * 0.13, y - h * 0.08, w * 0.26, h * 0.11);
+      if (w > 10) {
+        c.beginPath();
+        c.arc(cx - w * 0.07, y + h * 0.17, w * 0.025, 0, Math.PI * 2);
+        c.arc(cx + w * 0.07, y + h * 0.17, w * 0.025, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = '#c0392b';
+        c.fillRect(cx - w * 0.22, y + h * 0.31, w * 0.44, h * 0.05);
+      }
+    },
+  },
+  cone: {
+    w: 240, h: 320, hit: 0.9, breakable: 'tock',
+    draw(c, x, y, w, h) {
+      c.fillStyle = '#ff6a1a';
+      tri(c, x + w / 2, y, x + w * 0.85, y + h * 0.9, x + w * 0.15, y + h * 0.9);
+      c.fillStyle = '#f4f4f4';
+      c.beginPath();
+      c.moveTo(x + w * 0.36, y + h * 0.36);
+      c.lineTo(x + w * 0.64, y + h * 0.36);
+      c.lineTo(x + w * 0.7, y + h * 0.52);
+      c.lineTo(x + w * 0.3, y + h * 0.52);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#d0551a';
+      c.fillRect(x, y + h * 0.88, w, h * 0.12);
+    },
+  },
+  melons: {
+    w: 1300, h: 700, hit: 0.8, breakable: 'splat',
+    draw(c, x, y, w, h, s, env) {
+      const dark = env.night * 0.5;
+      c.fillStyle = mix('#6b4a2a', '#2a1d12', dark);
+      c.fillRect(x + w * 0.05, y + h * 0.55, w * 0.9, h * 0.12);
+      c.fillRect(x + w * 0.08, y + h * 0.67, w * 0.05, h * 0.33);
+      c.fillRect(x + w * 0.87, y + h * 0.67, w * 0.05, h * 0.33);
+      // awning
+      c.fillStyle = mix('#d84a3a', '#5a1f1a', dark);
+      c.fillRect(x, y, w, h * 0.12);
+      c.fillStyle = mix('#f2efe6', '#6a6862', dark);
+      for (let k = 0; k < 6; k += 2) c.fillRect(x + (w * k) / 6, y, w / 6, h * 0.12);
+      c.fillStyle = '#5b6270';
+      c.fillRect(x + w * 0.04, y + h * 0.1, w * 0.03, h * 0.45);
+      c.fillRect(x + w * 0.93, y + h * 0.1, w * 0.03, h * 0.45);
+      // a pile of watermelons and a few melons
+      const green = mix('#2f7d3a', '#163a1c', dark);
+      const yellow = mix('#e8c45a', '#6a5a2a', dark);
+      for (const [ax, ay, r, col] of [[0.25, 0.47, 0.11, 0], [0.45, 0.47, 0.11, 0], [0.65, 0.47, 0.11, 1], [0.35, 0.33, 0.1, 0], [0.55, 0.33, 0.1, 0], [0.8, 0.48, 0.09, 1], [0.45, 0.2, 0.09, 0]]) {
+        c.fillStyle = col ? yellow : green;
+        c.beginPath();
+        c.ellipse(x + w * ax, y + h * ay, w * r, w * r * 0.8, 0, 0, Math.PI * 2);
+        c.fill();
+        if (!col && w > 30) {
+          c.strokeStyle = 'rgba(0,0,0,0.25)';
+          c.lineWidth = Math.max(1, w * 0.008);
+          c.beginPath();
+          c.ellipse(x + w * ax, y + h * ay, w * r * 0.45, w * r * 0.78, 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+      }
     },
   },
 };
