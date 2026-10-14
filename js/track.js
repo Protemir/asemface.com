@@ -219,20 +219,24 @@ export class Track {
       this.segments[i].sprites.push({ def: SPRITES.cop, type: 'cop', offset: 1.38 });
       this.segments[wrap(i + 3, N)].sprites.push({ def: SPRITES.policecar, type: 'policecar', offset: 1.5 });
     }
-    for (const [z, off, count] of map.herds || []) {
+    // a herd of sheep, or of horses where the map says so
+    const COATS = ['#6b3f22', '#3b2a1e', '#a0662f', '#d8d2c8', '#8a5a3a'];
+    for (const [z, off, count, kind] of map.herds || []) {
       const i = at(z, off);
       clear(i - 45, 1);
       this.segments[wrap(i - 45, N)].sprites.push({ def: SPRITES.sign, type: 'sign', offset: 1.25, label: { ru: 'Скот на дороге', en: 'Livestock' }, color: '#8a6d12' });
       for (let k = 0; k < count; k++) {
         const vx = (0.12 + r() * 0.22) * (r() < 0.5 ? -1 : 1);
-        this.segments[wrap(i + Math.floor(k * 0.9), N)].sprites.push({
-          def: SPRITES.sheep,
-          type: 'sheep',
+        const horse = kind === 'horse';
+        this.segments[wrap(i + Math.floor(k * (horse ? 1.4 : 0.9)), N)].sprites.push({
+          def: horse ? SPRITES.horse : SPRITES.sheep,
+          type: horse ? 'horse' : 'sheep',
           offset: -1.1 + r() * 2.2,
           vx,
           vx0: vx,
           phase: r() * 6,
           wool: r() < 0.15 ? '#3a332c' : r() < 0.3 ? '#d9cbb0' : '#f1ede4',
+          coat: COATS[Math.floor(r() * COATS.length)],
         });
       }
       this.segments[wrap(i + 2, N)].sprites.push({ def: SPRITES.walker, type: 'walker', offset: -1.5, coat: '#6b4a2a', pants: '#2a2d35', hat: '#2b2b2b', shepherd: true });

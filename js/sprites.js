@@ -1134,4 +1134,159 @@ export const SPRITES = {
       }
     },
   },
+
+  // a birch in autumn: white trunk with black marks under a golden crown
+  birch: {
+    w: 760, h: 1750, hit: 0.25,
+    draw(c, x, y, w, h, s, env) {
+      const tones = [['#e2b23c', '#c48a24'], ['#e08a2c', '#b8641f'], ['#efcf62', '#cfa63a']];
+      const [light, dark] = tones[s.tone || 0];
+      const n = env.night * 0.7;
+      const cx = x + w / 2;
+      c.fillStyle = mix('#ece8e0', '#55524c', n);
+      c.fillRect(cx - w * 0.04, y + h * 0.35, w * 0.08, h * 0.65);
+      if (w > 12) {
+        c.fillStyle = '#2a2a2a';
+        for (let k = 0; k < 5; k++) c.fillRect(cx - w * 0.04 + (k % 2) * w * 0.03, y + h * (0.45 + k * 0.1), w * 0.05, Math.max(1, h * 0.012));
+      }
+      const blob = (bx, by, r) => {
+        c.beginPath();
+        c.ellipse(cx + w * bx, y + h * by, w * r, h * r * 0.55, 0, 0, Math.PI * 2);
+        c.fill();
+      };
+      c.fillStyle = mix(dark, '#2a2418', n);
+      blob(-0.18, 0.3, 0.24);
+      blob(0.2, 0.34, 0.22);
+      blob(0, 0.46, 0.25);
+      c.fillStyle = mix(light, '#3a3222', n);
+      blob(-0.1, 0.18, 0.22);
+      blob(0.12, 0.21, 0.2);
+      blob(0, 0.08, 0.16);
+      blob(-0.22, 0.4, 0.14);
+      blob(0.22, 0.44, 0.14);
+    },
+  },
+
+  // a house in Saty: wooden walls, blue window frames, a tin roof and smoke from the chimney
+  house: {
+    w: 2000, h: 1700, hit: 0.9,
+    draw(c, x, y, w, h, s, env) {
+      const n = env.night * 0.7;
+      const wallTop = y + h * 0.45;
+      if (w > 20) {
+        for (let k = 0; k < 3; k++) {
+          const t = (env.time * 0.35 + k / 3) % 1;
+          c.fillStyle = `rgba(214,220,226,${0.4 * (1 - t)})`;
+          c.beginPath();
+          c.ellipse(x + w * (0.715 + t * 0.08), y + h * (0.13 - t * 0.2), w * (0.03 + t * 0.05), w * (0.025 + t * 0.04), 0, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+      c.fillStyle = mix('#8a8f96', '#2a2c30', n);
+      c.fillRect(x + w * 0.68, y + h * 0.15, w * 0.07, h * 0.22);
+      c.fillStyle = mix(s.roof || '#6f7b86', '#22262b', n);
+      tri(c, x - w * 0.04, wallTop, x + w * 0.5, y + h * 0.12, x + w * 1.04, wallTop);
+      c.fillStyle = mix(s.wall || '#8a5a34', '#2b1d12', n);
+      c.fillRect(x + w * 0.04, wallTop, w * 0.92, h * 0.55);
+      if (w > 30) {
+        c.fillStyle = 'rgba(0,0,0,0.13)';
+        for (let k = 1; k < 6; k++) c.fillRect(x + w * 0.04, wallTop + (h * 0.55 * k) / 6, w * 0.92, Math.max(1, h * 0.006));
+      }
+      for (const wx of [0.16, 0.62]) {
+        const fx = x + w * wx;
+        const fy = wallTop + h * 0.13;
+        c.fillStyle = mix('#2f6fb0', '#16304d', n);
+        c.fillRect(fx, fy, w * 0.22, h * 0.26);
+        c.fillStyle = mix('#9fc4dd', '#ffd27a', Math.min(1, env.night * 2.5));
+        c.fillRect(fx + w * 0.02, fy + h * 0.025, w * 0.18, h * 0.21);
+        if (w > 24) {
+          c.fillStyle = mix('#2f6fb0', '#16304d', n);
+          c.fillRect(fx + w * 0.105, fy, w * 0.012, h * 0.26);
+          c.fillRect(fx, fy + h * 0.12, w * 0.22, h * 0.012);
+        }
+      }
+    },
+  },
+
+  // a drowned spruce in Lake Kaindy: a bare grey trunk standing in the water
+  snag: {
+    w: 300, h: 1500, hit: 0.3,
+    draw(c, x, y, w, h, s, env) {
+      const n = env.night * 0.6;
+      const cx = x + w / 2;
+      const top = y + h * (1 - (s.tall || 1));
+      const color = mix('#a3a7a6', '#3c3f40', n);
+      c.fillStyle = color;
+      c.beginPath();
+      c.moveTo(cx - w * 0.16, y + h);
+      c.lineTo(cx - w * 0.05, top);
+      c.lineTo(cx + w * 0.05, top);
+      c.lineTo(cx + w * 0.16, y + h);
+      c.closePath();
+      c.fill();
+      if (w > 6) {
+        c.strokeStyle = color;
+        c.lineWidth = Math.max(1, w * 0.05);
+        for (let k = 0; k < 5; k++) {
+          const by = top + (y + h - top) * (0.1 + k * 0.15);
+          const dir = k % 2 ? 1 : -1;
+          c.beginPath();
+          c.moveTo(cx, by);
+          c.lineTo(cx + dir * w * (0.5 - k * 0.06), by - h * 0.03);
+          c.stroke();
+        }
+      }
+      c.fillStyle = 'rgba(200,240,236,0.35)';
+      c.beginPath();
+      c.ellipse(cx, y + h, w * 0.55, Math.max(1, w * 0.08), 0, 0, Math.PI * 2);
+      c.fill();
+    },
+  },
+
+  // a horse from a herd wandering across the road
+  horse: {
+    w: 600, h: 520, hit: 0, sheep: true, horse: true, centered: true,
+    draw(c, x, y, w, h, s, env) {
+      const n = env.night * 0.6;
+      const face = (s.vx || 0) >= 0 ? 1 : -1;
+      const cx = x + w / 2;
+      const trot = s.vx ? Math.sin(env.time * 12 + (s.phase || 0)) * h * 0.05 : 0;
+      const coat = mix(s.coat || '#6b3f22', '#1d140d', n);
+      const mane = mix(s.mane || '#241a14', '#0d0a08', n);
+      c.fillStyle = mix(coat, '#000000', 0.25);
+      for (const [k, sign] of [[-0.3, 1], [-0.18, -1], [0.18, 1], [0.3, -1]]) {
+        c.fillRect(cx + w * k - w * 0.025, y + h * 0.55 + trot * sign, w * 0.05, h * 0.45 - trot * sign);
+      }
+      c.fillStyle = coat;
+      c.beginPath();
+      c.ellipse(cx, y + h * 0.5, w * 0.36, h * 0.17, 0, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.moveTo(cx + face * w * 0.2, y + h * 0.44);
+      c.lineTo(cx + face * w * 0.33, y + h * 0.12);
+      c.lineTo(cx + face * w * 0.42, y + h * 0.14);
+      c.lineTo(cx + face * w * 0.36, y + h * 0.5);
+      c.closePath();
+      c.fill();
+      c.beginPath();
+      c.ellipse(cx + face * w * 0.43, y + h * 0.18, w * 0.09, h * 0.065, face * 0.5, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = mane;
+      c.beginPath();
+      c.moveTo(cx + face * w * 0.2, y + h * 0.38);
+      c.lineTo(cx + face * w * 0.32, y + h * 0.09);
+      c.lineTo(cx + face * w * 0.29, y + h * 0.12);
+      c.lineTo(cx + face * w * 0.16, y + h * 0.42);
+      c.closePath();
+      c.fill();
+      c.beginPath();
+      c.moveTo(cx - face * w * 0.33, y + h * 0.42);
+      c.lineTo(cx - face * w * 0.46, y + h * 0.7);
+      c.lineTo(cx - face * w * 0.4, y + h * 0.72);
+      c.lineTo(cx - face * w * 0.31, y + h * 0.5);
+      c.closePath();
+      c.fill();
+      if (s.say && env.time < s.sayUntil && w > 9) speech(c, s.say, cx, y - h * 0.05, w);
+    },
+  },
 };

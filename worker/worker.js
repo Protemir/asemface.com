@@ -16,11 +16,13 @@ const BOARDS = {
   ch2: { min: 19, max: 900, asc: true },
   ch3: { min: 21, max: 900, asc: true },
   ch4: { min: 18, max: 900, asc: true },
+  ch5: { min: 21, max: 900, asc: true },
   'free-city': { max: 300 },
   'free-medeu': { max: 300 },
   'free-shymbulak': { max: 300 },
   'free-kapchagay': { max: 300 },
   'free-charyn': { max: 300 },
+  'free-kolsai': { max: 300 },
 };
 
 function cors(req) {

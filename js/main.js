@@ -4,7 +4,7 @@ import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG, CAR_W } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch } from './audio.js';
+import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 
@@ -87,6 +87,7 @@ const g = {
   penUntil: 0,
   mud: null,
   lastPuddle: -1,
+  rainWipe: 0,
   convoy: null,
   weaver: null,
 };
@@ -663,7 +664,7 @@ function honk() {
       s.scatter = true;
       scattered++;
       s.vx = (s.offset >= 0 ? 1 : -1) * (2.2 + Math.random());
-      shout(s, t('baa'), 1);
+      shout(s, cry(s), 1);
     }
     if (n > 14) continue;
     for (const c of seg.cars) {
@@ -686,6 +687,8 @@ function honk() {
 }
 
 const KMH_LIMIT = 200;
+const cry = (s) => t(s.def.horse ? 'neigh' : 'baa');
+const call = (s) => (s.def.horse ? neigh() : bleat());
 let bleatCool = 0;
 function copsAndSheep(T, pSeg, dt) {
   const N = T.segments.length;
@@ -730,21 +733,21 @@ function copsAndSheep(T, pSeg, dt) {
         if (Math.abs(s.offset) > 1.3) s.vx = -Math.sign(s.offset) * Math.abs(s.vx);
       }
       s.base = s.offset;
-      if (racing && n <= 1 && g.crashCool <= 0 && overlap(g.playerX, PLAYER_W, s.offset, 0.16)) {
-        // a sheep in the way: it jumps aside, the car nearly stops
+      if (racing && n <= 1 && g.crashCool <= 0 && overlap(g.playerX, PLAYER_W, s.offset, s.def.horse ? 0.26 : 0.16)) {
+        // a sheep or a horse in the way: it jumps aside, the car nearly stops
         g.speed = Math.min(g.speed, BASE_MAX * 0.22);
         g.crashCool = 0.5;
         g.shake = Math.max(g.shake, 0.6);
         s.dodge = true;
         s.t0 = g.time;
         s.dir = s.offset >= g.playerX ? 1 : -1;
-        shout(s, t('baa'), 1.4);
+        shout(s, cry(s), 1.4);
         animating.add(s);
-        bleat();
+        call(s);
         breakCombo();
       } else if (racing && n > 1 && n < 30 && bleatCool <= 0 && Math.abs(s.offset - g.playerX) < 0.5 && Math.random() < 0.02) {
-        shout(s, t('baa'), 1);
-        bleat();
+        shout(s, cry(s), 1);
+        call(s);
         bleatCool = 1.2;
       }
     }
@@ -821,6 +824,10 @@ function roadStuff(T, pSeg, dt) {
       squeak();
     }
     if (k > 2.6) g.mud = null;
+  }
+  if (g.mode === 'play' && !g.mud && g.map.weather && g.map.weather.rain && g.time > g.rainWipe) {
+    rainScreen();
+    g.rainWipe = g.time + 6 + Math.random() * 3;
   }
   weddingCool -= dt;
   if (g.mode === 'play' && g.convoy && weddingCool <= 0) {
@@ -922,6 +929,15 @@ function splashScreen(kind) {
   g.shake = Math.max(g.shake, 0.3);
   g.speed *= 0.97;
   if ((progress.stats.splashes = (progress.stats.splashes || 0) + 1) >= 5) unlock('wipers');
+}
+
+function rainScreen() {
+  const blobs = [];
+  for (let k = 0; k < 22; k++) {
+    const dots = [[(Math.random() - 0.5) * 2, 1.2 + Math.random(), 0.3]];
+    blobs.push({ p: k % 2, a: 0.12 + Math.random() * (Math.PI - 0.24), r: 0.25 + Math.random() * 0.7, s: 0.01 + Math.random() * 0.022, dots, drip: Math.random() < 0.3 ? 1.5 + Math.random() * 2 : 0, at: Math.random() * 0.45 });
+  }
+  g.mud = { t0: g.time, kind: 'water', blobs, rain: true };
 }
 
 // tumbleweeds sit on the shoulders until the car comes, then roll across bouncing
@@ -1062,6 +1078,7 @@ function startRace(opts) {
     lastBump: -1,
     lastPuddle: -1,
     mud: null,
+    rainWipe: g.time + 5,
   });
   // the weaver starts behind the line, the race has just put the car back to zero
   if (g.weaver) {

@@ -55,6 +55,9 @@ export class Renderer {
     const r = rng(5);
     const n = map.weather && map.weather.snow ? map.weather.snow : 0;
     for (let k = 0; k < n; k++) this.flakes.push({ x: r(), y: r(), z: 0.3 + r() * 0.7, s: r() });
+    this.drops = [];
+    const rain = map.weather && map.weather.rain ? map.weather.rain : 0;
+    for (let k = 0; k < rain; k++) this.drops.push({ x: r(), y: r(), z: 0.4 + r() * 0.6 });
     if (this.W) this.buildLayers();
   }
 
@@ -507,9 +510,11 @@ export class Renderer {
     if (k > 0.5 && k < 1) angle = easeInOut(lo, hi, (k - 0.5) / 0.5);
     else if (k >= 1 && k < 1.5) angle = easeInOut(hi, lo, (k - 1) / 0.5);
     const swept = k >= 1 ? hi : k > 0.5 ? angle : 0;
-    const grow = Math.min(1, k / 0.08);
     for (const b of mud.blobs) {
       if (b.a < swept) continue;
+      // rain drops land one by one, a splash lands all at once
+      const grow = Math.min(1, (k - (b.at || 0)) / 0.08);
+      if (grow <= 0) continue;
       const [px, py] = pivots[b.p];
       const bx = px + Math.cos(b.a) * b.r * arm;
       const by = py - Math.sin(b.a) * b.r * arm;
@@ -1122,6 +1127,7 @@ export class Renderer {
 
     // weather and speed
     if (this.flakes.length && !pSeg.tunnel) this.drawSnow(view);
+    if (this.drops && this.drops.length && !pSeg.tunnel) this.drawRain(view);
     if (view.boosting) this.drawSpeedLines();
     if (view.splat > 0) this.drawSplat(view.splat);
     c.drawImage(L.vignette, 0, 0);
@@ -1168,6 +1174,32 @@ export class Renderer {
       const r = Math.max(0.8, f.z * 2.4 * unit);
       c.fillRect(f.x * W, f.y * H, r, r);
     }
+  }
+
+  // rain: thin slanted streaks, longer and denser at speed
+  drawRain(view) {
+    const c = this.ctx;
+    const { W, H } = this;
+    const dt = view.still ? 0 : Math.min(0.05, view.dt || 0);
+    const speedPct = view.speed / BASE_MAX;
+    const slant = 0.12 - view.steer * speedPct * 0.15;
+    c.strokeStyle = this.map.sky.night > 0.5 ? 'rgba(170,185,205,0.32)' : 'rgba(220,228,236,0.36)';
+    c.lineWidth = Math.max(1, H / 900);
+    c.beginPath();
+    for (const d of this.drops) {
+      d.y += dt * (1.4 + d.z * 1.4 + speedPct * 0.6);
+      d.x += dt * slant * d.z + dt * (d.x - 0.5) * speedPct * 0.6 * d.z;
+      if (d.y > 1.05 || d.x < -0.05 || d.x > 1.05) {
+        d.y = -Math.random() * 0.1;
+        d.x = Math.random();
+      }
+      const len = (0.02 + d.z * 0.03 + speedPct * 0.02) * H;
+      const x = d.x * W;
+      const y = d.y * H;
+      c.moveTo(x, y);
+      c.lineTo(x - slant * len * 0.6, y - len);
+    }
+    c.stroke();
   }
 
   drawSpeedLines() {

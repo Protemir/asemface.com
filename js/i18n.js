@@ -3,7 +3,7 @@ import { store } from './util.js';
 const TEXT = {
   ru: {
     title: 'Әсем Жол: ночная гонка по Алматы',
-    tag: 'Гонка по Алматы и горам вокруг: от ночного города до Медеу, Шымбулака, Капчагая и Чарына.',
+    tag: 'Гонка по Алматы и горам вокруг: от ночного города до Медеу, Шымбулака, Капчагая, Чарына и Кольсая.',
     story: 'Сюжет',
     storySub: 'Глава {n} из {m}',
     storyDoneSub: 'Пройден, звёзд {s} из {m}',
@@ -126,6 +126,7 @@ const TEXT = {
     copStop: 'Тоқта!',
     copOk: 'Жарайсың!',
     baa: 'Бээ!',
+    neigh: 'И-го-го!',
     shepherd: 'Абайла!',
     tauntBehind: ['Әй, қайда асығасың?!', 'Ой-бой, жылдам екенсің!', 'Тоқта, қуып жетемін!', 'Есің дұрыс па?!', 'Шайтан!', 'Жол бер!', 'Бәрібір қуып жетемін!'],
     tauntAhead: ['Сау бол!', 'Қуып жет!', 'Артта қал!', 'Ұшып барамын!', 'Кешір, асығыспын!'],
@@ -174,7 +175,7 @@ const TEXT = {
   },
   en: {
     title: 'Asem Road: a night race through Almaty',
-    tag: 'A race through Almaty and the mountains around it: from the night city to Medeu, Shymbulak, Kapchagay and Charyn.',
+    tag: 'A race through Almaty and the mountains around it: from the night city to Medeu, Shymbulak, Kapchagay, Charyn and Kolsai.',
     story: 'Story',
     storySub: 'Chapter {n} of {m}',
     storyDoneSub: 'Done, {s} of {m} stars',
@@ -297,6 +298,7 @@ const TEXT = {
     copStop: 'Тоқта!',
     copOk: 'Жарайсың!',
     baa: 'Baa!',
+    neigh: 'Neigh!',
     shepherd: 'Абайла!',
     tauntBehind: ['Әй, қайда асығасың?!', 'Ой-бой, жылдам екенсің!', 'Тоқта, қуып жетемін!', 'Есің дұрыс па?!', 'Шайтан!', 'Жол бер!', 'Бәрібір қуып жетемін!'],
     tauntAhead: ['Сау бол!', 'Қуып жет!', 'Артта қал!', 'Ұшып барамын!', 'Кешір, асығыспын!'],

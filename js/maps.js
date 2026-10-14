@@ -1,4 +1,4 @@
-// Five routes around Almaty. Each map sets its sky, mountain layers, ground and
+// Six routes around Almaty. Each map sets its sky, mountain layers, ground and
 // road colors, traffic, the road itself (build) and what stands along it (decorate).
 
 const CITY_COLORS = ['#4b6fa5', '#7d8590', '#2f6f5e', '#c9b458', '#8c4a3a', '#d9dde3', '#30343c', '#5b4a8a', '#a0522d', '#e8e8e8'];
@@ -413,6 +413,95 @@ export const MAPS = [
       ];
     },
   },
+  {
+    id: 'kolsai',
+    name: { ru: 'Кольсай под дождём', en: 'Kolsai in the rain' },
+    lanes: 2,
+    seed: 2026101506,
+    fog: 5,
+    fogColor: '#9aa6b1',
+    sky: {
+      night: 0.25,
+      stops: [[0, '#4f5c6b'], [0.55, '#7c8896'], [1, '#b3bcc5']],
+      stars: 0,
+      body: null,
+      clouds: { color: '#8a95a1', alpha: 0.85, count: 12, top: 0.02, bottom: 0.5 },
+      vignette: 0.4,
+    },
+    ranges: [
+      { kind: 'peaks', color: '#56677a', snow: '#c8d2dc', snowLine: 0.45, height: 0.9, amp: 0.85, seed: 71, detail: 13, speed: 0.0012 },
+      { kind: 'peaks', color: '#24382f', height: 0.5, amp: 0.7, seed: 73, detail: 17, speed: 0.0022 },
+    ],
+    water: { top: '#5f8f94', bottom: '#2fa3a0', glint: '#bfe9e6' },
+    ground: [['#55703c', '#4f6a37'], ['#3f5a36', '#3a5432'], ['#2f9c98', '#2b9490'], ['#4a6338', '#445d33']],
+    road: ['#3b4047', '#373c43'],
+    rumble: ['#6d747c', '#676e76'],
+    lane: '#e4e7ea',
+    weather: { rain: 220 },
+    zones: [
+      { name: { ru: 'Саты', en: 'Saty' }, gate: { ru: 'САТЫ', en: 'SATY' } },
+      { name: { ru: 'Ущелье', en: 'The gorge' }, gate: { ru: 'УЩЕЛЬЕ', en: 'GORGE' } },
+      { name: { ru: 'Озеро Каинды', en: 'Lake Kaindy' }, gate: { ru: 'КАИНДЫ', en: 'KAINDY' } },
+      { name: { ru: 'Кольсай', en: 'Kolsai' }, gate: { ru: 'КОЛЬСАЙ', en: 'KOLSAI' } },
+    ],
+    traffic: { count: 26, oncoming: 0.45, min: 0.18, max: 0.36, kinds: [['suv', 4], ['niva', 2], ['bus', 2], ['lada', 1], ['sedan', 1]], colors: ['#e8e8e8', '#30343c', '#7d8590', '#2f6f9e', '#3a6b4a', '#8c4a3a', '#c9b458'] },
+    fun: {
+      zones: [0, 3],
+      walkers: 0.016,
+      hats: true,
+      props: [],
+      cones: [[[1, 220], 6, -0.9]],
+    },
+    police: [[0, 220]],
+    herds: [[0, 380, 6, 'horse'], [1, 300, 5, 'horse'], [3, 160, 6, 'horse'], [1, 520, 7]],
+    holes: 0.006,
+    puddles: { kind: 'water', rate: 0.009 },
+    eagle: true,
+    build(T) {
+      T.zone().road(50, 60, 50, 0, 0).road(40, 50, 40, 2, 10).road(40, 40, 40, -3, -10).road(40, 50, 40, 0, 5);
+      T.zone().road(30, 30, 30, -5, 20).road(30, 30, 30, 5, 15).road(25, 30, 25, -6, 10).road(30, 30, 30, 4, -15).road(30, 40, 30, -3, 10);
+      T.zone().road(40, 60, 40, 2, 0).road(40, 60, 40, -2, 0).road(40, 40, 40, 1, 0);
+      T.zone().road(30, 30, 30, 5, 15).road(30, 30, 30, -5, -10).road(30, 40, 30, 3, 5).home(100, 2);
+    },
+    decorate(T, seg, r) {
+      const z = seg.zone;
+      const i = seg.i;
+      const side = r() < 0.5 ? -1 : 1;
+      if (z === 0) {
+        // Saty: wooden houses with blue windows between golden birches
+        if (i % 26 === 0) T.addSprite(i, 'house', side * (2.1 + r() * 1.2), { roof: r() < 0.5 ? '#a3402f' : '#6f7b86', wall: r() < 0.5 ? '#8a5a34' : '#9b6b3e' });
+        if (r() < 0.12) T.addSprite(i, 'birch', side * (1.4 + r() * 3), { tone: Math.floor(r() * 3) });
+        if (r() < 0.05) T.addSprite(i, 'pine', -side * (2 + r() * 3), { snow: false });
+        if (i % 40 === 20) T.addSprite(i, 'pole', -1.3);
+      } else if (z === 1) {
+        // the gorge: spruce slopes, rocks, a golden birch now and then
+        outerRails(T, seg);
+        if (r() < 0.4) T.addSprite(i, 'pine', side * (1.3 + r() * 3.4), { snow: false });
+        if (r() < 0.18) T.addSprite(i, 'pine', -side * (1.6 + r() * 3), { snow: false });
+        if (r() < 0.06) T.addSprite(i, 'birch', side * (1.4 + r() * 2.5), { tone: Math.floor(r() * 3) });
+        if (r() < 0.05) T.addSprite(i, 'rock', side * (1.3 + r() * 0.8));
+      } else if (z === 2) {
+        // Kaindy: the road runs through the lake, drowned spruces stand in turquoise water
+        if (r() < 0.22) T.addSprite(i, 'snag', side * (1.5 + r() * 4.5), { tall: 0.6 + r() * 0.4 });
+        if (r() < 0.1) T.addSprite(i, 'snag', -side * (1.6 + r() * 4), { tall: 0.6 + r() * 0.4 });
+        if (i % 50 === 0) T.addSprite(i, 'pine', side * (6 + r() * 3), { snow: false });
+      } else {
+        // Kolsai: spruce forest down to the lake with golden birches between
+        if (r() < 0.32) T.addSprite(i, 'pine', side * (1.4 + r() * 3.4), { snow: false });
+        if (r() < 0.14) T.addSprite(i, 'birch', -side * (1.4 + r() * 3), { tone: Math.floor(r() * 3) });
+        if (r() < 0.04) T.addSprite(i, 'rock', side * (1.3 + r() * 0.8));
+      }
+    },
+    extras(T) {
+      const s = T.zoneStart;
+      return [
+        [s[0] + 60, 'sign', 1.25, { label: { ru: 'Саты 3 км', en: 'Saty 3 km' } }],
+        [s[1] + 40, 'sign', 1.25, { label: { ru: 'Камнепад', en: 'Falling rocks' }, color: '#8a6d12' }],
+        [s[2] + 30, 'billboard', -1.35, { label: { ru: 'КАИНДЫ', en: 'KAINDY' } }],
+        [s[3] + 30, 'sign', 1.25, { label: { ru: 'Кольсай 1 км', en: 'Kolsai 1 km' }, color: '#24508a' }],
+      ];
+    },
+  },
 ];
 
 export const mapById = (id) => MAPS.find((m) => m.id === id) || MAPS[0];
@@ -470,6 +559,19 @@ export const CHAPTERS = [
     },
     goal: { ru: 'Проедь Долину замков до ясеневой рощи.', en: 'Drive through the Valley of Castles to the ash grove.' },
     outro: { ru: 'Тень ясеней, холодная река и тишина. Лето удалось.', en: 'The shade of the ash trees, a cold river and silence. A good summer.' },
+  },
+  {
+    map: 'kolsai',
+    title: { ru: 'Кольсай под дождём', en: 'Kolsai in the rain' },
+    intro: {
+      ru: 'Осень. Орито нашёл в прогнозе окно без дождя, которого не было. Едут на Кольсай под ливнем: Саты, ущелье, озеро Каинды с затопленным лесом, а на дороге табуны.',
+      en: 'Autumn. Orito found a dry window in the forecast that was not there. They drive to Kolsai in the pouring rain: Saty, the gorge, Lake Kaindy with its sunken forest, and herds of horses on the road.',
+    },
+    goal: { ru: 'Доберись до озера Кольсай, пока не стемнело.', en: 'Reach Lake Kolsai before dark.' },
+    outro: {
+      ru: 'Дождь кончился прямо над озером. Термос с чаем, отсыревшие баурсаки и все шестеро на одном мостике. Хороший год.',
+      en: 'The rain stopped right over the lake. A thermos of tea, damp baursaks and all six of them on one little pier. A good year.',
+    },
   },
 ];
 

@@ -315,3 +315,34 @@ export function crunch() {
   if (!sound.on || !sound.ctx) return;
   for (let k = 0; k < 4; k++) setTimeout(() => noise(0.04, 0.22, 3500 + Math.random() * 2000), k * 35);
 }
+
+// a horse: a high whinny that shakes and slides down
+export function neigh() {
+  if (!sound.on || !sound.ctx) return;
+  const c = sound.ctx;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  o.type = 'sawtooth';
+  const base = 820 + Math.random() * 160;
+  o.frequency.setValueAtTime(base * 0.8, t);
+  o.frequency.linearRampToValueAtTime(base, t + 0.12);
+  o.frequency.exponentialRampToValueAtTime(base * 0.45, t + 0.75);
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 17;
+  const depth = c.createGain();
+  depth.gain.value = base * 0.09;
+  lfo.connect(depth).connect(o.frequency);
+  const f = c.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.value = 1500;
+  f.Q.value = 1.5;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.1, t + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  o.connect(f).connect(g).connect(c.destination);
+  o.start(t);
+  lfo.start(t);
+  o.stop(t + 0.82);
+  lfo.stop(t + 0.82);
+}
