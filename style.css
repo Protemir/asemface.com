@@ -220,6 +220,9 @@ button { font: inherit; color: inherit; }
 .best { font-family: var(--mono); font-size: 0.9375rem; display: inline-flex; align-items: center; gap: 8px; }
 .more { font-size: 0.875rem; color: var(--muted); }
 .more:hover { color: var(--text); }
+.about { width: 100%; display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
+.about p { margin: 0; }
+.about a { color: var(--accent); font-weight: 700; }
 .over-label { color: var(--muted); font-weight: 600; }
 .over-dist { font-family: var(--mono); font-size: 2.8rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
 .record { color: var(--accent); font-weight: 800; }

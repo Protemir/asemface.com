@@ -810,6 +810,15 @@ const screenMain = screen(() => {
     const a = el('a', 'more', t('more'));
     a.href = 'https://gamemetric.dev/';
     return a;
+  })(), (() => {
+    // who made it and why
+    const box = el('div', 'about');
+    const link = el('a', '', 'temirlab.com');
+    link.href = 'https://temirlab.com/';
+    const made = el('p', '', t('madeBy') + ' ');
+    made.append(link);
+    box.append(el('p', '', t('aboutFun')), made);
+    return box;
   })());
 });
 

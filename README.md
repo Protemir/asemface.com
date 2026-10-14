@@ -19,3 +19,5 @@ Controls: arrows or A/D to steer, down or space to brake, up, W or Shift for nit
 Code: `js/maps.js` holds the maps, chapters, friends and cars, `js/track.js` the road and traffic, `js/render.js` the drawing, `js/sprites.js` every object and vehicle, `js/main.js` the game itself. The road uses the classic pseudo-3D segment projection; Jake Gordon's write-up of his javascript-racer explains it best.
 
 Run it with any static server, for example `npx serve .` (modules do not load from `file://`). `?debug` exposes `window.__asem` for stepping the game by hand, `?og&map=kapchagay` renders the clean frame used for `og.png`.
+
+Made purely for fun, by [TEMIRLAB](https://temirlab.com/). Any resemblance to real traffic cops and sheep is a coincidence.
