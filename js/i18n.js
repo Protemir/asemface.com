@@ -170,6 +170,11 @@ const TEXT = {
     screams: ['А-а-а!', 'Ой-ой!', 'Эй!', 'Мама!', 'Аккуратнее!', 'Ну ты даёшь!', 'Ты что?!'],
     musicOn: 'Музыка',
     musicOff: 'Без музыки',
+    full: 'На весь экран',
+    fullSub: 'Без адресной строки, дорога на весь телефон',
+    fullExit: 'Свернуть экран',
+    fullExitSub: 'Вернуть адресную строку',
+    fullIosSub: 'На iPhone: «Поделиться», потом «На экран Домой». С иконки игра откроется на весь экран',
     place: 'Место {n} из {m}',
     friendBehind: '{name} позади!',
     friendPasses: '{name} обгоняет!',
@@ -346,6 +351,11 @@ const TEXT = {
     screams: ['Aaah!', 'Whoa!', 'Hey!', 'Mom!', 'Easy!', 'No way!', 'Seriously?!'],
     musicOn: 'Music',
     musicOff: 'No music',
+    full: 'Full screen',
+    fullSub: 'No address bar, the road fills the phone',
+    fullExit: 'Exit full screen',
+    fullExitSub: 'Bring the address bar back',
+    fullIosSub: 'On iPhone: Share, then Add to Home Screen. From the icon the game opens full screen',
     place: 'Place {n} of {m}',
     friendBehind: '{name} is behind you!',
     friendPasses: '{name} overtakes!',
@@ -383,7 +393,9 @@ export const L = (obj) => (obj == null ? '' : typeof obj === 'string' ? obj : ob
 export const km = (d) => d.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function clock(sec) {
-  const m = Math.floor(sec / 60);
-  const s = sec - m * 60;
+  // round to tenths first, or 59.96 turns into 0:60.0
+  const tenths = Math.round(sec * 10);
+  const m = Math.floor(tenths / 600);
+  const s = (tenths - m * 600) / 10;
   return `${m}:${s.toFixed(1).padStart(4, '0')}`;
 }

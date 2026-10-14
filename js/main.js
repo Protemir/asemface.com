@@ -179,6 +179,14 @@ function autopilot(T, pSeg) {
   return ahead(g.playerX, 8);
 }
 
+// signed distance from b to a along the looped track
+function gap(a, b, len) {
+  let d = a - b;
+  if (d > len / 2) d -= len;
+  if (d < -len / 2) d += len;
+  return d;
+}
+
 function update(dt) {
   const T = g.track;
   const N = T.segments.length;
@@ -189,10 +197,12 @@ function update(dt) {
   const speedPct = g.speed / BASE_MAX;
   const dx = dt * 2 * speedPct * (0.85 + 0.15 * st.grip);
   const startPos = g.position;
+  const pz0 = g.position + PLAYER_Z;
 
   friendsAI(T, dt);
   if (hornCool > 0) hornCool -= dt;
   for (const c of T.cars) {
+    c.z0 = c.z;
     if (c.yieldTo != null) {
       const d = c.yieldTo - c.offset;
       c.offset += Math.sign(d) * Math.min(Math.abs(d), dt * 1.2);
@@ -255,23 +265,34 @@ function update(dt) {
         }
       }
     }
-    for (const c of pSeg.cars) {
-      if (!overlap(g.playerX, PLAYER_W * 0.9, c.offset, (c.w / ROAD_W) * 0.9)) continue;
-      if (c.melon) {
-        hitMelon(c, T);
-        break;
-      }
-      if (c.dir > 0 && g.speed > c.speed) {
-        crash();
-        g.speed = c.speed * (c.speed / g.speed);
-        g.position = wrap(c.z - PLAYER_Z, T.length);
-        break;
-      }
-      if (c.dir < 0 && g.crashCool <= 0) {
-        crash();
-        g.speed = Math.min(g.speed, BASE_MAX * 0.12);
-        g.playerX += g.playerX > c.offset ? 0.35 : -0.35;
-        break;
+    // at top speed the car covers more than a segment per frame, so check
+    // every car whose gap to the player closed through zero during the frame
+    const pz1 = g.position + PLAYER_Z;
+    const reach = Math.ceil(wrap(g.position - startPos, T.length) / SEG) + 2;
+    hit: for (let n = -2; n <= reach; n++) {
+      for (const c of T.segments[wrap(pSeg.i + n, N)].cars) {
+        const before = gap(c.z0 ?? c.z, pz0, T.length);
+        const after = gap(c.z, pz1, T.length);
+        if (Math.min(before, after) > SEG * 0.5 || Math.max(before, after) < -SEG * 0.5) continue;
+        if (!overlap(g.playerX, PLAYER_W * 0.9, c.offset, (c.w / ROAD_W) * 0.9)) continue;
+        if (c.melon) {
+          hitMelon(c, T);
+          break hit;
+        }
+        if (c.dir > 0 && g.speed > c.speed) {
+          crash();
+          g.speed = c.speed * (c.speed / g.speed);
+          g.position = wrap(c.z - SEG * 0.4 - PLAYER_Z, T.length);
+          c.rel = null;
+          break hit;
+        }
+        if (c.dir < 0 && g.crashCool <= 0) {
+          crash();
+          g.speed = Math.min(g.speed, BASE_MAX * 0.12);
+          g.playerX += g.playerX > c.offset ? 0.35 : -0.35;
+          c.rel = null;
+          break hit;
+        }
       }
     }
   }
@@ -843,12 +864,14 @@ function pause() {
   g.mode = 'paused';
   pauseMusic(true);
   clearInputs();
+  // a frozen frame should not keep shaking, flashing or streaking
+  Object.assign(g, { shake: 0, flash: 0, boosting: false, braking: false });
   screenPause();
 }
 function resume() {
   if (g.mode !== 'paused') return;
   g.mode = pausedFrom;
-  pauseMusic(false);
+  if (audioUnlocked) playMusic(g.map.id, racingNow() ? 1 : 0);
   ui.replaceChildren();
   showHud(true);
 }
@@ -856,7 +879,11 @@ function resume() {
 function toMenu(screen = screenMain) {
   if (!['menu'].includes(g.mode)) {
     g.mode = 'menu';
-    if (g.track) populate(99);
+    if (g.track) {
+      populate(99);
+      g.track.resetDynamic();
+      animating.clear();
+    }
     g.speed = Math.max(g.speed, BASE_MAX * 0.3);
   }
   showHud(false);
@@ -874,6 +901,8 @@ function unlockAudio() {
 }
 const racingNow = () => ['countdown', 'play', 'ending', 'finish'].includes(g.mode);
 window.addEventListener('pointerdown', unlockAudio, { once: true });
+// wake the sound up again after the phone suspended it
+window.addEventListener('pointerdown', () => audioUnlocked && audioInit());
 window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ---------- HUD ----------
@@ -907,7 +936,8 @@ function updateHud() {
   setText('time', hud.time, g.timeLeft < 10 ? g.timeLeft.toFixed(1) : String(Math.ceil(g.timeLeft)));
   hud.time.classList.toggle('low', g.timeLeft < 6 && g.mode === 'play');
   setText('zone', hud.zone, L(g.map.zones[Math.max(0, T.segAt(g.position + PLAYER_Z).zone)].name));
-  setText('place', hud.place, t('place', { n: friendsAhead() + 1, m: FRIENDS.length + 1 }));
+  // after the line the place is fixed, friends still coasting should not change it
+  setText('place', hud.place, t('place', { n: g.result ? g.result.place : friendsAhead() + 1, m: FRIENDS.length + 1 }));
   setText('style', hud.style, `${t('styleLabel')} ${Math.round(g.style || 0).toLocaleString(getLang() === 'ru' ? 'ru-RU' : 'en-US')}${Math.floor(g.combo) > 1 ? ' ×' + Math.floor(g.combo) : ''}`);
   const n = Math.round(g.nitro * 100);
   if (cache.nitro !== n) {
@@ -1033,7 +1063,9 @@ const screenMain = screen(() => {
     item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
     item(t('achievements'), t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }), false, () => screenAchievements()),
   );
-  panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), (() => {
+  // phones: the whole screen for the road; iPhone Safari cannot do it for pages, the home screen icon can
+  if (isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
+  panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, isTouch && !installed && !canFull ? el('p', 'keys', t('fullIosSub')) : null, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), (() => {
     const a = el('a', 'more', t('more'));
     a.href = 'https://gamemetric.dev/';
     return a;
@@ -1527,10 +1559,17 @@ const KEYMAP = {
 };
 const racing = () => g.mode === 'play' || g.mode === 'countdown';
 window.addEventListener('keydown', (e) => {
+  // typing a name must not steer, honk or mute
+  if (e.target.closest && e.target.closest('input, textarea')) return;
   if (KEYMAP[e.code] && racing()) {
     e.preventDefault();
     keys.add(KEYMAP[e.code]);
     syncInput();
+    return;
+  }
+  // space held through the finish must not press the button that just got focus
+  if (e.repeat && (e.code === 'Space' || e.code === 'Enter')) {
+    e.preventDefault();
     return;
   }
   if (e.code === 'KeyH' && racing()) {
@@ -1546,12 +1585,15 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   if (!KEYMAP[e.code]) return;
+  if (keys.has(KEYMAP[e.code]) && !racing()) e.preventDefault();
   keys.delete(KEYMAP[e.code]);
   syncInput();
 });
 canvas.addEventListener('pointerdown', (e) => {
   if (!racing()) return;
   e.preventDefault();
+  // keep getting this finger's moves and release even if it slides over a button
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* not supported */ }
   pointers.set(e.pointerId, e.clientX < window.innerWidth / 2 ? 'left' : 'right');
   syncInput();
 });
@@ -1585,9 +1627,16 @@ $('hornBtn').addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('blur', clearInputs);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) pauseMusic(true);
-  else if (g.mode !== 'paused') pauseMusic(false);
-  if (document.hidden) pause();
+  if (document.hidden) {
+    pause();
+    pauseMusic(true);
+    // the frame loop stops in a hidden tab, so the engine would hum on
+    if (sound.ctx) sound.ctx.suspend().catch(() => {});
+    return;
+  }
+  if (!audioUnlocked) return;
+  audioInit();
+  if (g.mode !== 'paused') playMusic(g.map.id, racingNow() ? 1 : 0);
 });
 
 function toggleSound() {
@@ -1597,10 +1646,46 @@ function toggleSound() {
 $('pauseBtn').addEventListener('click', () => (g.mode === 'paused' ? resume() : pause()));
 function toggleMusic() {
   setMusic(!music.on);
-  if (music.on) playMusic(g.map.id, racingNow() ? 1 : 0);
+  // under the pause menu it starts on resume
+  if (music.on && g.mode !== 'paused') playMusic(g.map.id, racingNow() ? 1 : 0);
   $('musicBtn').setAttribute('aria-pressed', String(music.on));
 }
 $('musicBtn').addEventListener('click', toggleMusic);
+
+// ---------- full screen ----------
+// on a phone the address bar eats a good part of the road
+const docEl = document.documentElement;
+// iPhone Safari has neither, only video goes full screen there
+const canFull = !!((docEl.requestFullscreen && document.fullscreenEnabled) || (docEl.webkitRequestFullscreen && document.webkitFullscreenEnabled));
+// opened from a home screen icon: already full screen
+const installed = window.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true;
+const isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const FULL_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>';
+const EXIT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>';
+function toggleFull() {
+  try {
+    if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else if (docEl.requestFullscreen) docEl.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    else docEl.webkitRequestFullscreen();
+  } catch { /* the browser said no */ }
+}
+const fullBtn = $('fullBtn');
+fullBtn.hidden = !canFull || installed;
+fullBtn.addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  toggleFull();
+});
+function labelFull() {
+  const on = isFull();
+  fullBtn.innerHTML = on ? EXIT_ICON : FULL_ICON;
+  fullBtn.setAttribute('aria-label', on ? t('fullExit') : t('full'));
+}
+function syncFull() {
+  labelFull();
+  if (g.mode === 'menu' && ui.querySelector('.panel.main')) screenMain();
+}
+document.addEventListener('fullscreenchange', syncFull);
+document.addEventListener('webkitfullscreenchange', syncFull);
 $('muteBtn').addEventListener('click', toggleSound);
 
 function applyLang() {
@@ -1612,6 +1697,7 @@ function applyLang() {
   $('musicBtn').setAttribute('aria-pressed', String(music.on));
   nitroBtn.setAttribute('aria-label', t('nitroBtn'));
   $('hornBtn').textContent = t('horn');
+  labelFull();
   for (const k of Object.keys(thumbs)) delete thumbs[k];
 }
 
@@ -1620,7 +1706,12 @@ function applyLang() {
 function resize() {
   renderer.resize(window.innerWidth, window.innerHeight);
 }
-window.addEventListener('resize', resize);
+// rebuilding the backdrops is slow, wait until the window stops changing
+let resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(resize, 120);
+});
 
 const view = {
   get track() { return g.track; },

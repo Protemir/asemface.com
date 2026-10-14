@@ -19,11 +19,19 @@ export function hex(c) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// the same few colour pairs are mixed for every sprite on every frame, so remember them
+const mixed = new Map();
 export function mix(a, b, k) {
+  const key = a + b + k;
+  let out = mixed.get(key);
+  if (out) return out;
   const x = hex(a);
   const y = hex(b);
   const to = (v) => Math.round(v).toString(16).padStart(2, '0');
-  return '#' + to(lerp(x[0], y[0], k)) + to(lerp(x[1], y[1], k)) + to(lerp(x[2], y[2], k));
+  out = '#' + to(lerp(x[0], y[0], k)) + to(lerp(x[1], y[1], k)) + to(lerp(x[2], y[2], k));
+  if (mixed.size > 4000) mixed.clear();
+  mixed.set(key, out);
+  return out;
 }
 
 export function rgba(c, a) {

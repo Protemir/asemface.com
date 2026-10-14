@@ -33,7 +33,8 @@ const PENDING = 'asem.pending';
 export async function submit(entry) {
   try {
     const res = await call('/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) });
-    flushPending();
+    // the server takes one result per few seconds, so the queue waits a bit
+    setTimeout(flushPending, 9000);
     return res;
   } catch (err) {
     if (!err.status || err.status === 429 || err.status >= 500) {

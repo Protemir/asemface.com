@@ -22,13 +22,24 @@ function tri(c, x1, y1, x2, y2, x3, y3) {
   c.fill();
 }
 
+// a soft light, drawn once per colour into a small canvas and then stretched
+const glows = new Map();
 function glow(c, x, y, r, color) {
   if (r < 1.5) return;
-  const g = c.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, color);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  c.fillStyle = g;
-  c.fillRect(x - r, y - r, r * 2, r * 2);
+  let img = glows.get(color);
+  if (!img) {
+    img = document.createElement('canvas');
+    img.width = img.height = 64;
+    const gc = img.getContext('2d');
+    const g = gc.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    gc.fillStyle = g;
+    gc.fillRect(0, 0, 64, 64);
+    if (glows.size > 200) glows.clear();
+    glows.set(color, img);
+  }
+  c.drawImage(img, x - r, y - r, r * 2, r * 2);
 }
 
 function speech(c, text, cx, bottom, w) {

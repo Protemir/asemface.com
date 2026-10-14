@@ -51,7 +51,7 @@ export default {
 
     if (url.pathname === '/board' && req.method === 'GET') {
       const b = url.searchParams.get('b');
-      if (!BOARDS[b]) return json({ error: 'board' }, 400, h);
+      if (!Object.hasOwn(BOARDS, b)) return json({ error: 'board' }, 400, h);
       const g = cleanGroup(url.searchParams.get('g'));
       const list = (await env.SCORES.get(`b:${g}:${b}`, 'json')) || [];
       return json({ board: b, group: g, entries: list.slice(0, 20) }, 200, h);
@@ -64,7 +64,8 @@ export default {
       } catch {
         return json({ error: 'json' }, 400, h);
       }
-      const rule = BOARDS[body.b];
+      if (!body || typeof body !== 'object') return json({ error: 'json' }, 400, h);
+      const rule = Object.hasOwn(BOARDS, body.b) ? BOARDS[body.b] : null;
       if (!rule) return json({ error: 'board' }, 400, h);
       const name = cleanName(body.name);
       if (name.length < 2) return json({ error: 'name' }, 400, h);

@@ -202,7 +202,10 @@ export function playMusic(mapId, intensity) {
     step = 0;
     nextTime = sound.ctx.currentTime + 0.1;
   }
-  if (!timer) timer = setInterval(tick, 25);
+  if (!timer) {
+    nextTime = Math.max(nextTime, sound.ctx.currentTime + 0.1);
+    timer = setInterval(tick, 25);
+  }
   level();
 }
 
@@ -218,12 +221,11 @@ export function setMusic(on) {
 }
 
 export function pauseMusic(paused) {
-  if (!timer && !paused) return;
   if (paused) {
     clearInterval(timer);
     timer = 0;
     if (out) out.gain.setTargetAtTime(0, sound.ctx.currentTime, 0.05);
-  } else if (music.song) {
+  } else if (music.on && music.song && !timer) {
     nextTime = sound.ctx.currentTime + 0.1;
     timer = setInterval(tick, 25);
     level();

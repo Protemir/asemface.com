@@ -8,6 +8,11 @@
 <link rel="canonical" href="https://asemface.com/">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Әсем Жол">
 <meta name="theme-color" content="#070b1a">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://asemface.com/">
@@ -36,9 +41,12 @@
     <p class="style-total" id="hudStyle"></p>
   </div>
   <div class="hud-right">
-    <button type="button" class="icon-btn" id="pauseBtn" aria-label="Пауза">II</button>
-    <button type="button" class="icon-btn" id="musicBtn" aria-label="Музыка">♪</button>
-    <button type="button" class="icon-btn" id="muteBtn">Звук</button>
+    <div class="hud-btns">
+      <button type="button" class="icon-btn" id="pauseBtn" aria-label="Пауза">II</button>
+      <button type="button" class="icon-btn" id="musicBtn" aria-label="Музыка">♪</button>
+      <button type="button" class="icon-btn" id="muteBtn">Звук</button>
+    </div>
+    <button type="button" class="icon-btn" id="fullBtn" aria-label="На весь экран" hidden></button>
   </div>
 </div>
 

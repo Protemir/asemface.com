@@ -14,7 +14,7 @@ Five friends race along in every run, each in their own car: Daurito in a Skoda,
 
 Plain canvas and JS modules, no build step, no images, no requests. Everything you see is drawn with canvas shapes. Progress stays in localStorage.
 
-Controls: arrows or A/D to steer, down or space to brake, up, W or Shift for nitro, H for the horn, P to pause, M for sound. On a phone, hold the left or right half of the screen to steer, both halves to brake, and the round buttons for nitro and the horn. The gas is automatic.
+Controls: arrows or A/D to steer, down or space to brake, up, W or Shift for nitro, H for the horn, P to pause, M for sound. On a phone, hold the left or right half of the screen to steer, both halves to brake, and the round buttons for nitro and the horn. The gas is automatic. The menu and the HUD have a full screen button; iPhone Safari cannot do that for a page, so there the game is best added to the Home Screen, from where it opens without the browser bars.
 
 Code: `js/maps.js` holds the maps, chapters, friends and cars, `js/track.js` the road and traffic, `js/render.js` the drawing, `js/sprites.js` every object and vehicle, `js/main.js` the game itself. The road uses the classic pseudo-3D segment projection; Jake Gordon's write-up of his javascript-racer explains it best.
 

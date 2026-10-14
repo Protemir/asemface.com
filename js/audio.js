@@ -4,7 +4,8 @@ export const sound = { on: store.get('asem.sound', true), ctx: null, gain: null,
 
 export function audioInit() {
   if (sound.ctx) {
-    if (sound.ctx.state === 'suspended') sound.ctx.resume();
+    // iOS leaves it 'interrupted' after a call or Siri
+    if (sound.ctx.state !== 'running' && !document.hidden) sound.ctx.resume().catch(() => {});
     return;
   }
   try {
