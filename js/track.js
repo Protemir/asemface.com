@@ -215,16 +215,16 @@ export class Track {
       const i = at(z, off);
       clear(i, 1);
       clear(i - 110, 1);
-      this.segments[wrap(i - 110, N)].sprites.push({ def: SPRITES.limit, type: 'limit', offset: 1.25, limit: 200 });
-      this.segments[i].sprites.push({ def: SPRITES.cop, type: 'cop', offset: 1.38 });
-      this.segments[wrap(i + 3, N)].sprites.push({ def: SPRITES.policecar, type: 'policecar', offset: 1.5 });
+      this.segments[wrap(i - 110, N)].sprites.push({ def: SPRITES.limit, type: 'limit', offset: 1.25, limit: 200, radar: true });
+      this.segments[i].sprites.push({ def: SPRITES.cop, type: 'cop', offset: 1.38, radar: true });
+      this.segments[wrap(i + 3, N)].sprites.push({ def: SPRITES.policecar, type: 'policecar', offset: 1.5, radar: true });
     }
     // a herd of sheep, or of horses where the map says so
     const COATS = ['#6b3f22', '#3b2a1e', '#a0662f', '#d8d2c8', '#8a5a3a'];
     for (const [z, off, count, kind] of map.herds || []) {
       const i = at(z, off);
       clear(i - 45, 1);
-      this.segments[wrap(i - 45, N)].sprites.push({ def: SPRITES.sign, type: 'sign', offset: 1.25, label: { ru: 'Скот на дороге', en: 'Livestock' }, color: '#8a6d12' });
+      this.segments[wrap(i - 45, N)].sprites.push({ def: SPRITES.sign, type: 'sign', offset: 1.25, label: { ru: 'Скот на дороге', en: 'Livestock' }, color: '#8a6d12', herd: true });
       for (let k = 0; k < count; k++) {
         const vx = (0.12 + r() * 0.22) * (r() < 0.5 ? -1 : 1);
         const horse = kind === 'horse';
@@ -237,9 +237,10 @@ export class Track {
           phase: r() * 6,
           wool: r() < 0.15 ? '#3a332c' : r() < 0.3 ? '#d9cbb0' : '#f1ede4',
           coat: COATS[Math.floor(r() * COATS.length)],
+          herd: true,
         });
       }
-      this.segments[wrap(i + 2, N)].sprites.push({ def: SPRITES.walker, type: 'walker', offset: -1.5, coat: '#6b4a2a', pants: '#2a2d35', hat: '#2b2b2b', shepherd: true });
+      this.segments[wrap(i + 2, N)].sprites.push({ def: SPRITES.walker, type: 'walker', offset: -1.5, coat: '#6b4a2a', pants: '#2a2d35', hat: '#2b2b2b', shepherd: true, herd: true });
     }
   }
 

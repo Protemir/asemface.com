@@ -101,10 +101,60 @@ function setMap(id) {
   g.track = getTrack(id);
   renderer.setMap(g.map);
   populate(99);
+  applyOptions();
   if (audioUnlocked) playMusic(id, racingNow() ? 1 : 0);
   g.position = 0;
   g.playerX = g.track.lanes === 2 ? 0.5 : 0;
   g.autoLane = null;
+}
+
+// ---------- road options: three levels, or every switch by hand ----------
+const OPTS = ['herds', 'police', 'bumps', 'puddles', 'melons', 'tumble', 'wedding', 'weaver', 'walkers', 'props', 'talk'];
+const LEVELS = {
+  calm: [],
+  fun: ['tumble', 'wedding', 'weaver', 'walkers', 'props', 'talk'],
+  full: OPTS,
+};
+const opts = Object.assign(Object.fromEntries(OPTS.map((k) => [k, true])), { shake: true }, store.get('asem.opts', {}));
+function levelOf() {
+  for (const [id, on] of Object.entries(LEVELS)) if (OPTS.every((k) => !!opts[k] === on.includes(k))) return id;
+  return 'custom';
+}
+function setOpt(key, on) {
+  opts[key] = on;
+  store.set('asem.opts', opts);
+  applyOptions();
+}
+function setLevel(id) {
+  for (const k of OPTS) opts[k] = LEVELS[id].includes(k);
+  store.set('asem.opts', opts);
+  applyOptions();
+}
+// switched-off things vanish at once, even in the middle of a race
+function applyOptions() {
+  renderer.opts = opts;
+  const T = g.track;
+  if (!T) return;
+  for (const seg of T.segments) {
+    for (const s of seg.sprites) {
+      const cat = s.herd ? 'herds' : s.radar ? 'police' : s.def.tumble ? 'tumble' : s.def.walker ? 'walkers' : s.def.breakable ? 'props' : null;
+      s.off = !!cat && !opts[cat];
+    }
+  }
+  const ahead = Math.floor((g.position + PLAYER_Z) / SEG) + 120;
+  if (!opts.wedding && g.convoy) {
+    for (const c of g.convoy.cars) removeCar(c, T);
+    g.convoy = null;
+  } else if (opts.wedding && !g.convoy && T.map.wedding) g.convoy = addWedding(0, ahead);
+  if (!opts.weaver && g.weaver) {
+    removeCar(g.weaver, T);
+    g.weaver = null;
+  } else if (opts.weaver && !g.weaver && T.map.weaver) g.weaver = addWeaver();
+  if (!opts.melons) {
+    for (const c of T.cars.slice()) if (c.melon) removeCar(c, T);
+    g.splat = 0;
+  }
+  if (!opts.puddles) g.mud = null;
 }
 
 function populate(seed) {
@@ -116,8 +166,8 @@ function populate(seed) {
     c.color = '#3f6d2e';
     c.dropT = 2 + Math.random() * 3;
   }
-  g.convoy = g.track.map.wedding ? addWedding(seed) : null;
-  g.weaver = g.track.map.weaver ? addWeaver() : null;
+  g.convoy = g.track.map.wedding && opts.wedding ? addWedding(seed) : null;
+  g.weaver = g.track.map.weaver && opts.weaver ? addWeaver() : null;
   g.travel = 0;
 }
 
@@ -137,11 +187,11 @@ function addCar(T, car) {
 }
 
 // a wedding convoy: white cars with ribbons and balloons, honking all the way
-function addWedding(seed) {
+function addWedding(seed, at) {
   const T = g.track;
   const N = T.segments.length;
   const lane = T.lanes === 3 ? T.laneX[2] : T.laneX[1];
-  const start = 260 + ((seed * 7919) % Math.max(1, N - 600));
+  const start = at != null ? at % N : 260 + ((seed * 7919) % Math.max(1, N - 600));
   // nobody else in that lane around it
   for (const c of T.cars.slice()) {
     if (c.friend || c.dir < 0 || Math.abs(c.offset - lane) > 0.3) continue;
@@ -153,7 +203,7 @@ function addWedding(seed) {
   ['sedan', 'sedan', 'suv', 'sedan'].forEach((kind, k) => {
     convoy.cars.push(addCar(T, {
       offset: lane,
-      z: (start + (3 - k) * 4) * SEG,
+      z: ((start + (3 - k) * 4) % N) * SEG,
       speed: BASE_MAX * 0.4,
       dir: 1,
       kind,
@@ -382,7 +432,7 @@ function update(dt) {
       const limit = (BASE_MAX / 4) * st.offroad;
       if (g.speed > limit) g.speed -= (BASE_MAX / 2 / st.offroad) * dt;
       for (const s of pSeg.sprites) {
-        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep) continue;
+        if (s.off || s.def.walker || s.def.breakable || s.def.cop || s.def.sheep) continue;
         const sw = (s.w || s.def.w) / ROAD_W;
         const center = s.offset + (s.offset > 0 ? sw / 2 : -sw / 2);
         if (overlap(g.playerX, PLAYER_W, center, sw * s.def.hit)) {
@@ -547,7 +597,7 @@ function funStuff(T, pSeg, dt) {
     for (let n = 0; n <= 26; n++) {
       const seg = T.segments[(pSeg.i + n) % N];
       for (const s of seg.sprites) {
-        if (!s.def.walker || s.dodge) continue;
+        if (!s.def.walker || s.dodge || s.off) continue;
         if (Math.abs(s.offset - g.playerX) > 0.62) continue;
         s.dodge = true;
         s.t0 = g.time;
@@ -563,7 +613,7 @@ function funStuff(T, pSeg, dt) {
     for (let n = 0; n <= 1; n++) {
       const seg = T.segments[(pSeg.i + n) % N];
       for (const s of seg.sprites) {
-        if (!s.def.breakable || s.fly) continue;
+        if (!s.def.breakable || s.fly || s.off) continue;
         const sw = (s.w || s.def.w) / ROAD_W;
         const center = s.offset + (s.offset > 0 ? sw / 2 : -sw / 2);
         if (!overlap(g.playerX, PLAYER_W, center, sw * s.def.hit)) continue;
@@ -621,7 +671,7 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)];
 // friends talk one at a time and not too often, or the screen fills up with bubbles
 let talkUntil = 0;
 function say(car, key, force = false) {
-  if (!force && g.time < talkUntil) return;
+  if (!opts.talk || (!force && g.time < talkUntil)) return;
   car.say = pick(t(key));
   car.sayUntil = g.time + 1.8;
   talkUntil = g.time + 5;
@@ -630,7 +680,7 @@ function say(car, key, force = false) {
 // people and sheep: one bubble on screen at a time, the rest just scream or bleat
 let crowdUntil = 0;
 function shout(s, text, dur) {
-  if (g.time < crowdUntil) return;
+  if (!opts.talk || g.time < crowdUntil) return;
   s.say = text;
   s.sayUntil = g.time + dur;
   crowdUntil = g.time + dur;
@@ -651,7 +701,7 @@ function honk() {
   for (let n = 1; n <= 45; n++) {
     const seg = T.segments[(pSeg.i + n) % N];
     for (const s of seg.sprites) {
-      if (n <= 30 && s.def.walker && !s.dodge && Math.abs(s.offset - g.playerX) < 1.6) {
+      if (n <= 30 && s.def.walker && !s.dodge && !s.off && Math.abs(s.offset - g.playerX) < 1.6) {
         s.dodge = true;
         s.t0 = g.time;
         s.dir = s.offset > g.playerX ? 1 : -1;
@@ -660,7 +710,7 @@ function honk() {
       }
     }
     for (const s of seg.sprites) {
-      if (!s.def.sheep || s.scatter || s.dodge) continue;
+      if (!s.def.sheep || s.scatter || s.dodge || s.off) continue;
       s.scatter = true;
       scattered++;
       s.vx = (s.offset >= 0 ? 1 : -1) * (2.2 + Math.random());
@@ -698,14 +748,17 @@ function copsAndSheep(T, pSeg, dt) {
   for (let n = -1; n <= 125; n++) {
     const seg = T.segments[(pSeg.i + n + N) % N];
     for (const s of seg.sprites) {
+      if (s.off) continue;
       if (s.def.cop && !s.checked && n > 1) g.radar = true;
       if (s.def.cop && racing && !s.checked && n <= 1) {
         // the radar: faster than the limit costs time, at the limit earns a little nitro
         s.checked = true;
         const kmh = (g.speed / BASE_MAX) * KMH_AT_MAX;
         if (kmh > KMH_LIMIT) {
-          s.say = t('copStop');
-          s.sayUntil = g.time + 2;
+          if (opts.talk) {
+            s.say = t('copStop');
+            s.sayUntil = g.time + 2;
+          }
           if (g.mode === 'play') g.timeLeft = Math.max(0, g.timeLeft - 3);
           // the timer itself shows the fine for a moment
           g.penUntil = g.time + 1.3;
@@ -715,8 +768,10 @@ function copsAndSheep(T, pSeg, dt) {
           g.style -= lost;
           if (lost) showGain(-lost);
         } else {
-          s.say = t('copOk');
-          s.sayUntil = g.time + 2;
+          if (opts.talk) {
+            s.say = t('copOk');
+            s.sayUntil = g.time + 2;
+          }
           g.nitro = Math.min(1, g.nitro + 0.12);
           award(200);
           if (++g.run.cops >= 2) unlock('legal');
@@ -825,7 +880,7 @@ function roadStuff(T, pSeg, dt) {
     }
     if (k > 2.6) g.mud = null;
   }
-  if (g.mode === 'play' && !g.mud && g.map.weather && g.map.weather.rain && g.time > g.rainWipe) {
+  if (g.mode === 'play' && opts.puddles && !g.mud && g.map.weather && g.map.weather.rain && g.time > g.rainWipe) {
     rainScreen();
     g.rainWipe = g.time + 6 + Math.random() * 3;
   }
@@ -852,21 +907,21 @@ function roadStuff(T, pSeg, dt) {
     }
     // at top speed the car can skip a segment, so look at the one just passed too
     const prev = T.segments[(pSeg.i - 1 + T.segments.length) % T.segments.length];
-    for (const seg of [prev, pSeg]) {
+    for (const seg of opts.puddles ? [prev, pSeg] : []) {
       const p = seg.puddle;
       if (!p || seg.i === g.lastPuddle || Math.abs(p.offset - g.playerX) > p.size + 0.15) continue;
       g.lastPuddle = seg.i;
       if ((g.speed / BASE_MAX) * KMH_AT_MAX > 50) splashScreen(p.kind);
     }
     tumbleweeds(T, pSeg, dt);
-    if (pSeg.hole && pSeg.i !== g.lastHole && Math.abs(pSeg.hole.offset - g.playerX) < 0.25) {
+    if (opts.bumps && pSeg.hole && pSeg.i !== g.lastHole && Math.abs(pSeg.hole.offset - g.playerX) < 0.25) {
       g.lastHole = pSeg.i;
       g.shake = Math.max(g.shake, 0.7);
       g.jolt = 1;
       g.speed *= 0.93;
       noise(0.12, 0.25, 400);
     }
-    if (pSeg.bump && pSeg.i !== g.lastBump) {
+    if (opts.bumps && pSeg.bump && pSeg.i !== g.lastBump) {
       g.lastBump = pSeg.i;
       if ((g.speed / BASE_MAX) * KMH_AT_MAX > 120) {
         g.jolt = 1.8;
@@ -879,7 +934,7 @@ function roadStuff(T, pSeg, dt) {
       }
     }
     // the melon truck loses a watermelon now and then
-    if (g.mode === 'play') {
+    if (g.mode === 'play' && opts.melons) {
       const pz = g.position + PLAYER_Z;
       let melons = 0;
       for (const c of T.cars) if (c.melon) melons++;
@@ -947,7 +1002,7 @@ function tumbleweeds(T, pSeg, dt) {
   for (let n = 0; n <= 140; n++) {
     const seg = T.segments[(pSeg.i + n) % N];
     for (const s of seg.sprites) {
-      if (!s.def.tumble || s.fly || s.gone) continue;
+      if (!s.def.tumble || s.fly || s.gone || s.off) continue;
       s.offset += s.vx * dt;
       if (Math.abs(s.offset) > 2.1) s.vx = -Math.sign(s.offset) * Math.abs(s.vx);
       s.rot = (s.rot || 0) + s.vx * dt * 5;
@@ -1288,6 +1343,7 @@ const screenMain = screen(() => {
     item(t('garage'), t('car_' + currentCar().id), false, () => screenGarage()),
     item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
     item(t('achievements'), t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }), false, () => screenAchievements()),
+    item(t('settings'), t('settingsSub', { l: t('level_' + levelOf()) }), false, () => screenSettings()),
   );
   // phones: the whole screen for the road; iPhone Safari cannot do it for pages, the home screen icon can
   if (isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
@@ -1640,11 +1696,53 @@ const screenAchievements = screen(() => {
 });
 
 const screenPause = screen(() => {
-  panel('', el('h2', '', t('paused')), (() => {
-    const row = el('div', 'row');
-    row.append(btn(t('resume'), 'primary', resume), btn(t('restart'), '', () => startRace(g.last)), btn(t('menu'), 'ghost', () => toMenu()));
-    return row;
-  })());
+  const chips = el('div', 'level-chips');
+  for (const id of Object.keys(LEVELS)) {
+    const b = el('button', 'chip-btn', t('level_' + id));
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(levelOf() === id));
+    b.addEventListener('click', () => {
+      setLevel(id);
+      screenPause();
+    });
+    chips.append(b);
+  }
+  const row = el('div', 'row');
+  row.append(btn(t('resume'), 'primary', resume), btn(t('restart'), '', () => startRace(g.last)), btn(t('settings'), '', () => screenSettings(screenPause)), btn(t('menu'), 'ghost', () => toMenu()));
+  panel('', el('h2', '', t('paused')), chips, row);
+});
+
+// road settings: pick a level, or flip single things
+const screenSettings = screen((back = screenMain) => {
+  const levels = el('div', 'levels');
+  for (const id of Object.keys(LEVELS)) {
+    const b = el('button', 'menu-item');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(levelOf() === id));
+    b.append(el('b', '', t('level_' + id)), el('span', '', t('level_' + id + 'Sub')));
+    b.addEventListener('click', () => {
+      setLevel(id);
+      screenSettings(back);
+    });
+    levels.append(b);
+  }
+  const toggle = (key) => {
+    const b = el('button', 'opt');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(!!opts[key]));
+    b.append(el('span', '', t('opt_' + key)), el('i'));
+    b.addEventListener('click', () => {
+      setOpt(key, !opts[key]);
+      screenSettings(back);
+    });
+    return b;
+  };
+  const road = el('div', 'opt-list');
+  road.append(...OPTS.filter((k) => k !== 'talk').map(toggle));
+  const screenOpts = el('div', 'opt-list');
+  screenOpts.append(toggle('talk'), toggle('shake'));
+  const note = levelOf() === 'custom' ? el('p', 'head-note', t('level_custom')) : null;
+  panel('wide', head(t('settings'), () => back(), note), levels, el('p', 'opt-head', t('optRoad')), road, el('p', 'opt-head', t('optScreen')), screenOpts, el('p', 'keys', t('settingsNote')));
 });
 
 function showFinish() {
@@ -1947,13 +2045,13 @@ const view = {
   get steer() { return g.steer; },
   get braking() { return g.braking || g.mode === 'ending'; },
   get boosting() { return g.boosting; },
-  get shake() { return g.shake; },
+  get shake() { return opts.shake ? g.shake : 0; },
   get flash() { return g.flash; },
   get time() { return g.time; },
   get parallax() { return g.parallax; },
   get still() { return g.mode === 'paused'; },
-  get roll() { return g.roll || 0; },
-  get jolt() { return g.jolt || 0; },
+  get roll() { return opts.shake ? g.roll || 0 : 0; },
+  get jolt() { return opts.shake ? g.jolt || 0 : 0; },
   get splat() { return g.splat || 0; },
   get mud() { return g.mud; },
   get playing() { return g.mode === 'play'; },

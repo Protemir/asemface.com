@@ -390,7 +390,7 @@ export class Renderer {
         this.poly(lx1 - l1 / 2, y1, lx1 + l1 / 2, y1, lx2 + l2 / 2, y2, lx2 - l2 / 2, y2, color.lane);
       }
     }
-    if (near && (seg.hole || seg.bump || seg.zebra || seg.puddle)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2);
+    if (near && (seg.hole || seg.bump || seg.zebra || seg.puddle)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2, this.opts || {});
     if (seg.fog < 1) {
       c.globalAlpha = 1 - seg.fog;
       c.fillStyle = this.map.fogColor;
@@ -399,9 +399,10 @@ export class Renderer {
     }
   }
 
-  drawSurface(seg, x1, y1, w1, x2, y2, w2) {
+  drawSurface(seg, x1, y1, w1, x2, y2, w2, opts) {
     const c = this.ctx;
-    if (seg.zebra) {
+    const bumps = opts.bumps !== false;
+    if (seg.zebra && bumps) {
       const n = 9;
       for (let k = 0; k < n; k++) {
         const a = -0.92 + (k * 1.84) / n;
@@ -409,7 +410,7 @@ export class Renderer {
         this.poly(x1 + w1 * a, y1, x1 + w1 * b, y1, x2 + w2 * b, y2, x2 + w2 * a, y2, 'rgba(238,241,246,0.85)');
       }
     }
-    if (seg.bump) {
+    if (seg.bump && bumps) {
       const n = 10;
       for (let k = 0; k < n; k++) {
         const a = -1 + (k * 2) / n;
@@ -417,7 +418,7 @@ export class Renderer {
         this.poly(x1 + w1 * a, y1, x1 + w1 * b, y1, x2 + w2 * b, y2, x2 + w2 * a, y2, k % 2 ? '#1e1f22' : '#e8b630');
       }
     }
-    if (seg.puddle) {
+    if (seg.puddle && opts.puddles !== false) {
       const p = seg.puddle;
       const col = PUDDLE[p.kind] || PUDDLE.water;
       const wm = (w1 + w2) / 2;
@@ -435,7 +436,7 @@ export class Renderer {
       c.ellipse(cx - rx * 0.15, cy - ry * 0.25, rx * 0.55, ry * 0.22, 0, 0, Math.PI * 2);
       c.fill();
     }
-    if (seg.hole) {
+    if (seg.hole && bumps) {
       const xm = (x1 + x2) / 2;
       const wm = (w1 + w2) / 2;
       const cx = xm + seg.hole.offset * wm;
@@ -682,7 +683,7 @@ export class Renderer {
   }
 
   drawSprite(s, scale, x, y, offX, clipY, alpha, env) {
-    if (s.gone) return;
+    if (s.gone || s.off) return;
     const def = s.def;
     const dw = (s.w || def.w) * scale * this.FX;
     const dh = (s.h || def.h) * scale * this.FX;
