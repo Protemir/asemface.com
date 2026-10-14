@@ -1,8 +1,8 @@
 import { store } from './util.js';
 
 // The leaderboard lives in a Cloudflare Worker (worker/worker.js in this repo).
-// Empty until the worker is deployed; the game then keeps everything local.
-const PROD = '';
+// If it can't be reached, the game keeps everything on this device.
+const PROD = 'https://asem-scores.protemir.workers.dev';
 // for local testing: ?api=http://localhost:8787 (only localhost is accepted)
 const override = new URLSearchParams(location.search).get('api');
 export const API = override && /^http:\/\/localhost:\d+$/.test(override) ? override : PROD;
