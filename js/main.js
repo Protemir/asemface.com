@@ -14,7 +14,8 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches;
 
 // ---------- progress ----------
 
-const progress = Object.assign({ stars: {}, times: {}, best: {}, paint: {}, car: 'hatch', map: 'city' }, store.get('asem.progress', {}));
+const progress = Object.assign({ stars: {}, times: {}, best: {}, paint: {}, ach: {}, stats: {}, styleBest: {}, car: 'hatch', map: 'city' }, store.get('asem.progress', {}));
+for (const k of ['ach', 'stats', 'styleBest']) if (!progress[k]) progress[k] = {};
 if (!progress.paint) progress.paint = {};
 {
   // a friend's invite link: asemface.com/?group=code
@@ -73,6 +74,14 @@ const g = {
   endTimer: 0,
   autoLane: null,
   result: null,
+  roll: 0,
+  jolt: 0,
+  splat: 0,
+  style: 0,
+  combo: 1,
+  comboT: 0,
+  clean: true,
+  run: { near: 0, cops: 0 },
 };
 
 const canvas = $('game');
@@ -93,6 +102,12 @@ function setMap(id) {
 function populate(seed) {
   g.track.spawnCars(seed);
   g.track.addFriends(FRIENDS, seed + 1);
+  const trucks = g.track.cars.filter((c) => c.kind === 'truck' && c.dir > 0).slice(0, g.track.map.melonTrucks || 0);
+  for (const c of trucks) {
+    c.melonTruck = true;
+    c.color = '#3f6d2e';
+    c.dropT = 2 + Math.random() * 3;
+  }
   g.travel = 0;
 }
 
@@ -242,6 +257,10 @@ function update(dt) {
     }
     for (const c of pSeg.cars) {
       if (!overlap(g.playerX, PLAYER_W * 0.9, c.offset, (c.w / ROAD_W) * 0.9)) continue;
+      if (c.melon) {
+        hitMelon(c, T);
+        break;
+      }
       if (c.dir > 0 && g.speed > c.speed) {
         crash();
         g.speed = c.speed * (c.speed / g.speed);
@@ -266,6 +285,10 @@ function update(dt) {
       let rel = c.z - pz;
       if (rel > T.length / 2) rel -= T.length;
       if (rel < -T.length / 2) rel += T.length;
+      if (c.melon) {
+        c.rel = rel;
+        continue;
+      }
       if (c.rel != null && c.rel > 0 && rel <= 0 && rel > -SEG * 30) {
         const lat = Math.abs(c.offset - g.playerX);
         if (c.friend) {
@@ -273,12 +296,17 @@ function update(dt) {
           const line = say(c, 'tauntBehind');
           toast(`${L(c.name)}: ${line}`);
           beep(990, 0.1, 'triangle', 0.08);
+          award(300, L(c.name));
         } else if (lat < 0.72 && g.crashCool <= 0) {
           g.nitro = Math.min(1, g.nitro + (c.dir < 0 ? 0.3 : 0.22));
           toast(t('nearMiss'));
           beep(1250, 0.08, 'sine', 0.06);
+          award(c.dir < 0 ? 250 : 150, t('sNear'));
+          g.run.near++;
+          if (g.run.near >= 10) unlock('near10');
         } else if (lat < 1.5) {
           g.nitro = Math.min(1, g.nitro + 0.05);
+          g.style += Math.round(40 * Math.floor(g.combo));
         }
       } else if (c.friend && c.rel != null && c.rel < 0 && rel >= 0 && rel < SEG * 30) {
         toast(`${L(c.name)}: ${say(c, 'tauntAhead')}`);
@@ -289,6 +317,22 @@ function update(dt) {
 
   g.playerX = clamp(g.playerX, -2.6, 2.6);
   g.speed = clamp(g.speed, 0, BASE_MAX * 1.4);
+
+  // the camera leans into the bends
+  const lean = -pSeg.curve * Math.min(1.3, g.speed / BASE_MAX) * 0.0085 + g.steer * 0.006 * Math.min(1, g.speed / BASE_MAX);
+  g.roll += (lean - g.roll) * Math.min(1, dt * 3);
+  if (g.jolt > 0) g.jolt = Math.max(0, g.jolt - dt * 4);
+  if (g.splat > 0) g.splat = Math.max(0, g.splat - dt * 0.8);
+  if (g.mode === 'play') {
+    if (g.comboT > 0) {
+      g.comboT -= dt;
+      if (g.comboT <= 0) g.combo = 1;
+    }
+    const kmh = (g.speed / BASE_MAX) * KMH_AT_MAX;
+    if (g.boosting && kmh > 200) g.style += 30 * dt * Math.floor(g.combo);
+    if (kmh >= 280) unlock('speed');
+    if (g.track.cars.length && friendsAhead() === 0 && g.elapsed > 3) unlock('all_friends');
+  }
   g.parallax += pSeg.curve * (wrap(g.position - startPos, T.length) / SEG);
 
   if (g.mode === 'countdown') {
@@ -381,12 +425,16 @@ function funStuff(T, pSeg, dt) {
         animating.add(s);
         bonk(s.def.breakable);
         g.nitro = Math.min(1, g.nitro + 0.04);
+        award({ tubeman: 120, snowman: 100, cone: 40, melons: 200 }[s.type] || 50, t('s_' + s.type));
+        if (s.type === 'melons' && (progress.stats.melons = (progress.stats.melons || 0) + 1) >= 5) unlock('melons');
+        if (s.type === 'tubeman' && (progress.stats.tubemen = (progress.stats.tubemen || 0) + 1) >= 10) unlock('tubeman');
         g.shake = Math.max(g.shake, 0.3);
         if (g.speed > BASE_MAX * 0.4) g.speed -= BASE_MAX * 0.04;
       }
     }
   }
   copsAndSheep(T, pSeg, dt);
+  roadStuff(T, pSeg, dt);
   for (const s of animating) {
     const k = g.time - s.t0;
     if (s.fly) {
@@ -433,6 +481,8 @@ function honk() {
   if (g.mode !== 'play' || hornCool > 0) return;
   hornCool = 0.6;
   horn();
+  if ((progress.stats.honks = (progress.stats.honks || 0) + 1) >= 100) unlock('honk100');
+  let scattered = 0;
   const T = g.track;
   const N = T.segments.length;
   const pSeg = T.segAt(g.position + PLAYER_Z);
@@ -453,6 +503,7 @@ function honk() {
     for (const s of seg.sprites) {
       if (!s.def.sheep || s.scatter || s.dodge) continue;
       s.scatter = true;
+      scattered++;
       s.vx = (s.offset >= 0 ? 1 : -1) * (2.2 + Math.random());
       if (Math.random() < 0.4) {
         s.say = t('baa');
@@ -461,6 +512,7 @@ function honk() {
     }
     if (n > 14) continue;
     for (const c of seg.cars) {
+      if (c.melon) continue;
       if (c.dir < 0 || Math.abs(c.offset - g.playerX) > 0.5) continue;
       if (c.friend) {
         if (!answered) toast(`${L(c.name)}: ${say(c, 'tauntHorn')}`);
@@ -471,6 +523,10 @@ function honk() {
       const free = T.laneX.filter((l) => Math.abs(l - c.offset) > 0.3 && (T.lanes === 3 || l > 0));
       c.yieldTo = free.length ? free[0] : clamp(c.offset + 0.35, -0.9, 0.9);
     }
+  }
+  if (scattered >= 3) {
+    award(150, t('sHerd'));
+    if ((progress.stats.herds = (progress.stats.herds || 0) + 1) >= 3) unlock('shepherd');
   }
 }
 
@@ -495,11 +551,16 @@ function copsAndSheep(T, pSeg, dt) {
           if (g.mode === 'play') g.timeLeft = Math.max(0, g.timeLeft - 3);
           toast(t('fine'));
           whistle();
+          breakCombo();
+          g.style = Math.max(0, g.style - 300);
+          stylePop('-300');
         } else {
           s.say = t('copOk');
           s.sayUntil = g.time + 2;
           g.nitro = Math.min(1, g.nitro + 0.12);
           toast(t('copThanks'));
+          award(200, t('sLegal'));
+          if (++g.run.cops >= 2) unlock('legal');
         }
       }
       if (!s.def.sheep) continue;
@@ -526,6 +587,7 @@ function copsAndSheep(T, pSeg, dt) {
         animating.add(s);
         bleat();
         toast(t('sheepHit'));
+        breakCombo();
       } else if (racing && n > 1 && n < 30 && bleatCool <= 0 && Math.abs(s.offset - g.playerX) < 0.5 && Math.random() < 0.02) {
         s.say = t('baa');
         s.sayUntil = g.time + 1;
@@ -534,6 +596,146 @@ function copsAndSheep(T, pSeg, dt) {
       }
     }
   }
+}
+
+// ---------- style points and combos ----------
+
+function award(points, label, chain = true) {
+  if (g.mode !== 'play') return;
+  const mult = Math.floor(g.combo);
+  const pts = Math.round(points * mult);
+  g.style += pts;
+  // the multiplier grows by half a step per trick, so x8 takes a real streak
+  if (chain) g.combo = Math.min(8, g.combo + 0.5);
+  g.comboT = 3.5;
+  stylePop(`+${pts} ${label}${mult > 1 ? ' ×' + mult : ''}`);
+  if (g.combo >= 8) unlock('combo8');
+  if (g.style >= 50000) unlock('style10k');
+}
+function breakCombo() {
+  g.combo = 1;
+  g.comboT = 0;
+}
+
+// ---------- achievements ----------
+
+const ACH = ['first_finish', 'story_done', 'three_stars', 'all_friends', 'legal', 'shepherd', 'melons', 'tubeman', 'near10', 'combo8', 'speed', 'baursak', 'paint', 'honk100', 'style10k', 'splat', 'bump'];
+const achQueue = [];
+let achShowing = false;
+function unlock(id) {
+  if (progress.ach[id]) return;
+  progress.ach[id] = Date.now();
+  saveProgress();
+  achQueue.push(id);
+  if (!achShowing) nextAch();
+}
+function nextAch() {
+  const id = achQueue.shift();
+  const box = $('achToast');
+  if (!id) {
+    achShowing = false;
+    box.classList.remove('show');
+    return;
+  }
+  achShowing = true;
+  box.replaceChildren(el('small', '', t('achUnlocked')), el('b', '', t('ach_' + id)));
+  box.classList.remove('show');
+  void box.offsetWidth;
+  box.classList.add('show');
+  beep(784, 0.12);
+  setTimeout(() => beep(1175, 0.18), 120);
+  setTimeout(nextAch, 2600);
+}
+
+// ---------- baursaks, potholes, speed bumps, the melon truck ----------
+
+let holeCool = 0;
+function roadStuff(T, pSeg, dt) {
+  const racing = g.mode === 'play' || g.mode === 'ending';
+  holeCool -= dt;
+  if (racing) {
+    for (let n = 0; n <= 1; n++) {
+      const seg = T.segments[(pSeg.i + n) % T.segments.length];
+      for (const s of seg.sprites) {
+        if (!s.def.pickup || s.gone || Math.abs(s.offset - g.playerX) > 0.3) continue;
+        s.gone = true;
+        g.nitro = Math.min(1, g.nitro + 0.15);
+        award(100, t('sBaursak'));
+        beep(880, 0.06, 'sine', 0.08);
+        setTimeout(() => beep(1320, 0.08, 'sine', 0.08), 60);
+        if ((progress.stats.baursaks = (progress.stats.baursaks || 0) + 1) >= 20) unlock('baursak');
+      }
+    }
+    if (pSeg.hole && pSeg.i !== g.lastHole && Math.abs(pSeg.hole.offset - g.playerX) < 0.25) {
+      g.lastHole = pSeg.i;
+      g.shake = Math.max(g.shake, 0.7);
+      g.jolt = 1;
+      g.speed *= 0.93;
+      noise(0.12, 0.25, 400);
+      if (holeCool <= 0) {
+        toast(t('pothole'));
+        holeCool = 4;
+      }
+    }
+    if (pSeg.bump && pSeg.i !== g.lastBump) {
+      g.lastBump = pSeg.i;
+      if ((g.speed / BASE_MAX) * KMH_AT_MAX > 120) {
+        g.jolt = 1.8;
+        g.shake = 1;
+        g.speed *= 0.85;
+        toast(t('bumpFast'));
+        noise(0.2, 0.3, 500);
+        unlock('bump');
+      } else {
+        g.jolt = 0.5;
+      }
+    }
+    // the melon truck loses a watermelon now and then
+    if (g.mode === 'play') {
+      const pz = g.position + PLAYER_Z;
+      let melons = 0;
+      for (const c of T.cars) if (c.melon) melons++;
+      for (const c of T.cars) {
+        if (!c.melonTruck) continue;
+        let rel = c.z - pz;
+        if (rel > T.length / 2) rel -= T.length;
+        if (rel < -T.length / 2) rel += T.length;
+        if (rel < SEG * 12 || rel > SEG * 90) continue;
+        c.dropT -= dt;
+        if (c.dropT > 0 || melons >= 8) continue;
+        c.dropT = 1.6 + Math.random() * 2.4;
+        const melon = { melon: true, kind: 'melon', dir: 1, offset: clamp(c.offset + (Math.random() - 0.5) * 0.3, -0.9, 0.9), z: wrap(c.z - SEG * 1.5, T.length), speed: c.speed * 0.35, w: 230, percent: 0, life: 9, roll: 0, drift: (Math.random() - 0.5) * 0.3, rel: null };
+        T.cars.push(melon);
+        T.segAt(melon.z).cars.push(melon);
+        melons++;
+      }
+    }
+  }
+  for (const c of T.cars.slice()) {
+    if (!c.melon) continue;
+    c.life -= dt;
+    c.offset = clamp(c.offset + c.drift * dt, -1.2, 1.2);
+    c.roll += dt * 9;
+    c.speed *= 1 - dt * 0.25;
+    if (c.life <= 0) removeCar(c, T);
+  }
+}
+function removeCar(c, T) {
+  const i = T.cars.indexOf(c);
+  if (i >= 0) T.cars.splice(i, 1);
+  const seg = T.segAt(c.z);
+  const k = seg.cars.indexOf(c);
+  if (k >= 0) seg.cars.splice(k, 1);
+}
+function hitMelon(c, T) {
+  removeCar(c, T);
+  g.splat = 1.3;
+  g.speed *= 0.9;
+  g.shake = Math.max(g.shake, 0.5);
+  bonk('splat');
+  toast(t('melonHit'));
+  unlock('splat');
+  award(80, t('s_melon'));
 }
 
 function enterZone(z) {
@@ -546,6 +748,8 @@ function enterZone(z) {
   const factor = g.kind === 'free' ? Math.pow(0.9, g.lap - 1) : 1;
   const bonus = Math.max(7, Math.round((T.zoneSeconds[z] + 3) * factor));
   g.timeLeft += bonus;
+  if (g.clean) award(500, t('sClean'));
+  g.clean = true;
   banner(L(g.map.zones[z].name), (z === 0 ? t('lap', { n: g.lap }) + '  ' : '') + t('checkpoint', { s: bonus }));
   beep(660, 0.1);
   setTimeout(() => beep(990, 0.14), 110);
@@ -554,6 +758,8 @@ function enterZone(z) {
 
 function crash() {
   if (g.crashCool > 0) return;
+  breakCombo();
+  g.clean = false;
   g.crashCool = 0.6;
   g.shake = 1;
   g.flash = 0.6;
@@ -573,6 +779,9 @@ function finish() {
   progress.stars[g.chapter] = Math.max(progress.stars[g.chapter] || 0, stars);
   if (g.result.best) progress.times[g.chapter] = g.elapsed;
   saveProgress();
+  if (g.chapter === 0) unlock('first_finish');
+  if (CHAPTERS.every((ch, i) => progress.stars[i])) unlock('story_done');
+  if (stars === 3) unlock('three_stars');
   banner(t('finishTitle'));
   fanfare();
 }
@@ -609,6 +818,15 @@ function startRace(opts) {
     mode: 'countdown',
     crashCool: 0,
     result: null,
+    style: 0,
+    combo: 1,
+    comboT: 0,
+    clean: true,
+    run: { near: 0, cops: 0 },
+    jolt: 0,
+    splat: 0,
+    lastHole: -1,
+    lastBump: -1,
   });
   g.last = opts;
   clearInputs();
@@ -660,7 +878,7 @@ window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ---------- HUD ----------
 
-const hud = { place: $('hudPlace'), root: $('hud'), speed: $('hudSpeed'), kmh: $('hudKmh'), dist: $('hudDist'), time: $('hudTime'), zone: $('hudZone'), nitro: $('hudNitro') };
+const hud = { style: $('hudStyle'), place: $('hudPlace'), root: $('hud'), speed: $('hudSpeed'), kmh: $('hudKmh'), dist: $('hudDist'), time: $('hudTime'), zone: $('hudZone'), nitro: $('hudNitro') };
 const cache = {};
 function setText(key, node, value) {
   if (cache[key] === value) return;
@@ -690,6 +908,7 @@ function updateHud() {
   hud.time.classList.toggle('low', g.timeLeft < 6 && g.mode === 'play');
   setText('zone', hud.zone, L(g.map.zones[Math.max(0, T.segAt(g.position + PLAYER_Z).zone)].name));
   setText('place', hud.place, t('place', { n: friendsAhead() + 1, m: FRIENDS.length + 1 }));
+  setText('style', hud.style, `${t('styleLabel')} ${Math.round(g.style || 0).toLocaleString(getLang() === 'ru' ? 'ru-RU' : 'en-US')}${Math.floor(g.combo) > 1 ? ' ×' + Math.floor(g.combo) : ''}`);
   const n = Math.round(g.nitro * 100);
   if (cache.nitro !== n) {
     cache.nitro = n;
@@ -706,6 +925,13 @@ function banner(big, small) {
   bannerEl.classList.remove('show');
   void bannerEl.offsetWidth;
   bannerEl.classList.add('show');
+}
+const popEl = $('stylePop');
+function stylePop(text) {
+  popEl.textContent = text;
+  popEl.classList.remove('show');
+  void popEl.offsetWidth;
+  popEl.classList.add('show');
 }
 const toastEl = $('toast');
 let toastTimer = 0;
@@ -805,6 +1031,7 @@ const screenMain = screen(() => {
     item(t('free'), t('freeSub'), false, () => screenMaps()),
     item(t('garage'), t('car_' + currentCar().id), false, () => screenGarage()),
     item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
+    item(t('achievements'), t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }), false, () => screenAchievements()),
   );
   panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), (() => {
     const a = el('a', 'more', t('more'));
@@ -915,6 +1142,7 @@ const screenGarage = screen(() => {
       b.setAttribute('aria-pressed', String(p === color));
       b.addEventListener('click', () => {
         progress.paint[view.id] = p;
+        if (p !== view.color) unlock('paint');
         progress.car = view.id;
         saveProgress();
         screenGarage();
@@ -1138,6 +1366,21 @@ function scoreBox(board, value) {
   return box;
 }
 
+const screenAchievements = screen(() => {
+  const list = el('div', 'ach-list');
+  for (const id of ACH) {
+    const done = !!progress.ach[id];
+    const row = el('div', 'ach' + (done ? ' done' : ''));
+    row.append(el('span', 'ach-mark', done ? '✓' : ''), (() => {
+      const box = el('div');
+      box.append(el('b', '', t('ach_' + id)), el('p', '', t('achd_' + id)));
+      return box;
+    })());
+    list.append(row);
+  }
+  panel('wide', head(t('achievements'), () => screenMain(), el('span', 'head-note', t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }))), list);
+});
+
 const screenPause = screen(() => {
   panel('', el('h2', '', t('paused')), (() => {
     const row = el('div', 'row');
@@ -1159,11 +1402,25 @@ function showFinish() {
   note.id = 'shareNote';
   currentScreen = null;
   const sendBox = r.best ? scoreBox(boardId('story', i), Math.round(r.time * 100) / 100) : null;
-  panel('', el('h2', '', L(ch.title)), starsRow(r.stars), el('p', 'over-dist', clock(r.time)), el('p', r.place === 1 ? 'record' : 'best', r.place === 1 ? t('firstPlace') : t('finishPlace', { n: r.place, m: FRIENDS.length + 1 })), r.best && progress.times[i] === r.time && r.prevStars ? el('p', 'record', t('record')) : null, el('p', 'tag', L(ch.outro)), i + 1 === CHAPTERS.length ? el('p', 'note', t('storyEnd')) : null, sendBox, row, note);
+  const styleLine = styleResult(boardId('story', i));
+  panel('', el('h2', '', L(ch.title)), starsRow(r.stars), el('p', 'over-dist', clock(r.time)), el('p', r.place === 1 ? 'record' : 'best', r.place === 1 ? t('firstPlace') : t('finishPlace', { n: r.place, m: FRIENDS.length + 1 })), r.best && progress.times[i] === r.time && r.prevStars ? el('p', 'record', t('record')) : null, styleLine, el('p', 'tag', L(ch.outro)), i + 1 === CHAPTERS.length ? el('p', 'note', t('storyEnd')) : null, sendBox, row, note);
+}
+
+function styleResult(board) {
+  const pts = Math.round(g.style || 0);
+  const isRecord = pts > (progress.styleBest[board] || 0);
+  if (isRecord) {
+    progress.styleBest[board] = pts;
+    saveProgress();
+  }
+  const p = el('p', isRecord && pts > 0 ? 'record' : 'best', t('styleTotal', { n: pts.toLocaleString(getLang() === 'ru' ? 'ru-RU' : 'en-US') }));
+  if (isRecord && pts > 0) p.append(document.createTextNode('  ' + t('styleRecord')));
+  return p;
 }
 
 function showFail() {
   g.mode = 'fail';
+  saveProgress();
   showHud(false);
   playMusic(g.map.id, 0);
   const row = el('div', 'row');
@@ -1174,6 +1431,7 @@ function showFail() {
 
 function showOver() {
   g.mode = 'over';
+  saveProgress();
   showHud(false);
   playMusic(g.map.id, 0);
   const id = g.map.id;
@@ -1188,7 +1446,8 @@ function showOver() {
   note.id = 'shareNote';
   currentScreen = null;
   const sendBox = isRecord && g.distance >= 0.2 ? scoreBox(boardId('free', id), Math.round(g.distance * 100) / 100) : null;
-  panel('', el('h2', '', t('overTitle')), el('p', 'over-label', `${L(g.map.name)}. ${t('overSub')}`), el('p', 'over-dist', `${km(g.distance)} ${t('km')}`), isRecord ? el('p', 'record', t('record')) : null, el('p', 'best', t('best', { d: km(progress.best[id]) })), sendBox, row, note);
+  const styleLine = styleResult(boardId('free', id));
+  panel('', el('h2', '', t('overTitle')), el('p', 'over-label', `${L(g.map.name)}. ${t('overSub')}`), el('p', 'over-dist', `${km(g.distance)} ${t('km')}`), isRecord ? el('p', 'record', t('record')) : null, el('p', 'best', t('best', { d: km(progress.best[id]) })), styleLine, sendBox, row, note);
 }
 
 async function share() {
@@ -1376,6 +1635,10 @@ const view = {
   get time() { return g.time; },
   get parallax() { return g.parallax; },
   get still() { return g.mode === 'paused'; },
+  get roll() { return g.roll || 0; },
+  get jolt() { return g.jolt || 0; },
+  get splat() { return g.splat || 0; },
+  get playing() { return g.mode === 'play'; },
   get car() { return currentCar(); },
   dt: 0,
   gateLabel(seg) {

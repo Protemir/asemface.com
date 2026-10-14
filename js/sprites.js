@@ -1071,4 +1071,27 @@ export const SPRITES = {
       if (s.say && env.time < s.sayUntil && w > 9) speech(c, s.say, cx, y - h * 0.1, w * 1.2);
     },
   },
+
+  // a hot baursak hovering over the road: pick it up for nitro
+  baursak: {
+    w: 300, h: 300, hit: 0, pickup: true,
+    draw(c, x, y, w, h, s, env) {
+      const bob = Math.sin(env.time * 4 + (s.phase || 0)) * h * 0.08;
+      const cx = x + w / 2;
+      const cy = y + h * 0.45 + bob;
+      if (w > 5) glow(c, cx, cy, w * 0.9, 'rgba(255,200,90,0.45)');
+      c.fillStyle = '#c9822f';
+      roundRect(c, cx - w * 0.3, cy - h * 0.24, w * 0.6, h * 0.48, w * 0.2);
+      c.fill();
+      c.fillStyle = '#e5a64c';
+      roundRect(c, cx - w * 0.24, cy - h * 0.2, w * 0.42, h * 0.3, w * 0.14);
+      c.fill();
+      if (w > 10) {
+        c.fillStyle = 'rgba(255,255,255,0.55)';
+        c.beginPath();
+        c.ellipse(cx - w * 0.1, cy - h * 0.1, w * 0.07, h * 0.04, -0.4, 0, Math.PI * 2);
+        c.fill();
+      }
+    },
+  },
 };

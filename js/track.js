@@ -39,6 +39,7 @@ export class Track {
     for (const [i, type, offset, extra] of map.extras ? map.extras(this) : []) this.addSprite(i, type, offset, extra, true);
     if (map.fun) this.placeFun(map.fun, r);
     this.placeTraps(map, r);
+    this.placeExtras(map, r);
     for (let z = 0; z < this.zoneStart.length; z++) {
       const seg = this.segments[this.zoneStart[z] + GATE_AT];
       seg.gate = z + 1;
@@ -49,7 +50,7 @@ export class Track {
     this.dynamic = [];
     for (const seg of this.segments) {
       for (const s of seg.sprites) {
-        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep) {
+        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep || s.def.pickup) {
           s.base = s.offset;
           this.dynamic.push(s);
         }
@@ -156,6 +157,30 @@ export class Track {
         const seg = this.segments[wrap(this.zoneStart[start[0]] + start[1] + k * 3, this.segments.length)];
         seg.sprites.push({ def: SPRITES.cone, type: 'cone', offset });
       }
+    }
+  }
+
+  // baursaks to pick up, potholes, speed bumps with zebra crossings
+  placeExtras(map, r) {
+    const N = this.segments.length;
+    const start = GATE_AT + 40;
+    for (let i = start; i < N - 30; i += 150 + Math.floor(r() * 80)) {
+      const lane = this.laneX[Math.floor(r() * this.laneX.length)];
+      for (let k = 0; k < 4; k++) {
+        this.segments[i + k * 3].sprites.push({ def: SPRITES.baursak, type: 'baursak', offset: lane, phase: r() * 6 });
+      }
+    }
+    const holes = map.holes || 0;
+    for (const seg of this.segments) {
+      if (seg.i > start && !seg.tunnel && r() < holes) {
+        seg.hole = { offset: -0.75 + r() * 1.5, size: 0.1 + r() * 0.08 };
+      }
+    }
+    for (const [z, off] of map.bumps || []) {
+      const i = wrap(this.zoneStart[z] + off, N);
+      this.segments[i].bump = true;
+      this.segments[wrap(i + 2, N)].zebra = true;
+      this.segments[wrap(i + 3, N)].zebra = true;
     }
   }
 
