@@ -1,7 +1,7 @@
 import { clamp, wrap, overlap, store, el } from './util.js';
 import { t, L, km, clock, getLang, setLang } from './i18n.js';
 import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
-import { Track, SEG, PLAYER_Z, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG, CAR_W } from './track.js';
+import { Track, SEG, PLAYER_Z, setCameraBack, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG, CAR_W } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
 import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
@@ -119,7 +119,7 @@ const LEVELS = {
   full: OPTS,
 };
 // everyone starts calm and switches the chaos on in the settings
-const opts = Object.assign(Object.fromEntries(OPTS.map((k) => [k, false])), { shake: true }, store.get('asem.opts', {}));
+const opts = Object.assign(Object.fromEntries(OPTS.map((k) => [k, false])), { shake: true, far: true }, store.get('asem.opts', {}));
 const savedLevel = store.get('asem.level', null);
 if (savedLevel && LEVELS[savedLevel]) for (const k of OPTS) opts[k] = LEVELS[savedLevel].includes(k);
 function levelOf() {
@@ -129,7 +129,7 @@ function levelOf() {
 function setOpt(key, on) {
   opts[key] = on;
   store.set('asem.opts', opts);
-  store.set('asem.level', 'custom');
+  if (OPTS.includes(key)) store.set('asem.level', 'custom');
   applyOptions();
 }
 function setLevel(id) {
@@ -141,7 +141,11 @@ function setLevel(id) {
 // switched-off things vanish at once, even in the middle of a race
 function applyOptions() {
   renderer.opts = opts;
+  // the camera: keep the car where it is on the road, only the view moves
+  const oldZ = PLAYER_Z;
+  setCameraBack(opts.far ? 1.3 : 1);
   const T = g.track;
+  if (T && PLAYER_Z !== oldZ) g.position = wrap(g.position - (PLAYER_Z - oldZ), T.length);
   if (!T) return;
   for (const seg of T.segments) {
     for (const s of seg.sprites) {
@@ -1774,7 +1778,7 @@ const screenSettings = screen((back = screenMain) => {
   const road = el('div', 'opt-list');
   road.append(...OPTS.filter((k) => k !== 'talk').map(toggle));
   const screenOpts = el('div', 'opt-list');
-  screenOpts.append(toggle('talk'), toggle('shake'));
+  screenOpts.append(toggle('talk'), toggle('shake'), toggle('far'));
   const note = levelOf() === 'custom' ? el('p', 'head-note', t('level_custom')) : null;
   panel('wide', head(t('settings'), () => back(), note), levels, el('p', 'opt-head', t('optRoad')), road, el('p', 'opt-head', t('optScreen')), screenOpts, el('p', 'keys', t('settingsNote')));
 });

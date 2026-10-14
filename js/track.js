@@ -9,7 +9,11 @@ export const ROAD_W = 2000;
 export const CAM_H = 1000;
 export const FOV = 100;
 export const CAM_DEPTH = 1 / Math.tan(((FOV / 2) * Math.PI) / 180);
-export const PLAYER_Z = CAM_H * CAM_DEPTH;
+// how far ahead of the camera the car sits; further back shows it smaller with more road in front
+export let PLAYER_Z = CAM_H * CAM_DEPTH;
+export function setCameraBack(k) {
+  PLAYER_Z = CAM_H * CAM_DEPTH * k;
+}
 export const BASE_MAX = SEG * 60;
 export const CAR_W = 640;
 export const PLAYER_W = CAR_W / ROAD_W;

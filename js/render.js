@@ -43,8 +43,9 @@ export class Renderer {
     this.H = Math.max(1, Math.round(cssH * scale));
     this.canvas.width = this.W;
     this.canvas.height = this.H;
-    this.FX = this.W / 2;
     this.FY = Math.min(this.H / 2, this.W * 0.9);
+    // on wide screens the width alone would blow the car and the road up, so it is capped by the height
+    this.FX = Math.min(this.W / 2, this.FY * 1.4);
     this.HORIZON = this.H - this.FY;
     if (this.map) this.buildLayers();
   }
