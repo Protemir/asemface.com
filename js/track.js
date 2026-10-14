@@ -50,8 +50,9 @@ export class Track {
     this.dynamic = [];
     for (const seg of this.segments) {
       for (const s of seg.sprites) {
-        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep || s.def.pickup) {
+        if (s.def.walker || s.def.breakable || s.def.cop || s.def.sheep || s.def.pickup || s.def.tumble) {
           s.base = s.offset;
+          s.home = s.offset;
           this.dynamic.push(s);
         }
       }
@@ -61,7 +62,7 @@ export class Track {
 
   resetDynamic() {
     for (const s of this.dynamic) {
-      Object.assign(s, { offset: s.base, t0: 0, fly: false, gone: false, dodge: false, say: null, sayUntil: 0, lift: 0, rot: 0, alpha: 1, checked: false, scatter: false, vx: s.vx0 ?? s.vx });
+      Object.assign(s, { offset: s.home, base: s.home, t0: 0, fly: false, gone: false, dodge: false, say: null, sayUntil: 0, lift: 0, rot: 0, alpha: 1, checked: false, scatter: false, vx: s.vx0 ?? s.vx });
     }
   }
 
@@ -175,6 +176,22 @@ export class Track {
       if (seg.i > start && !seg.tunnel && r() < holes) {
         seg.hole = { offset: -0.75 + r() * 1.5, size: 0.1 + r() * 0.08 };
       }
+    }
+    // puddles after the rain, slush in the mountains, mud on the steppe
+    const pd = map.puddles;
+    if (pd) {
+      for (const seg of this.segments) {
+        if (seg.i > start && seg.i < N - 20 && !seg.tunnel && !seg.hole && r() < pd.rate) {
+          seg.puddle = { offset: -0.7 + r() * 1.4, size: 0.14 + r() * 0.08, kind: pd.kind };
+        }
+      }
+    }
+    // tumbleweeds wait on the shoulders and roll across when the car comes
+    for (let k = 0; k < (map.tumbleweeds || 0); k++) {
+      const i = start + Math.floor(r() * (N - start - 40));
+      const side = r() < 0.5 ? -1 : 1;
+      const vx = -side * (0.45 + r() * 0.35);
+      this.segments[i].sprites.push({ def: SPRITES.tumble, type: 'tumble', offset: side * (1.5 + r() * 0.4), vx, vx0: vx, phase: r() * 6 });
     }
     for (const [z, off] of map.bumps || []) {
       const i = wrap(this.zoneStart[z] + off, N);

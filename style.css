@@ -108,6 +108,7 @@ button { font: inherit; color: inherit; }
 }
 
 @media (max-width: 520px) {
+  .place, .style-total { font-size: 0.75rem; letter-spacing: -0.02em; }
   .hud-right { flex-direction: column; align-items: flex-end; }
   .speed b { font-size: 1.5rem; }
   .time { font-size: 2.1rem; }
@@ -115,7 +116,7 @@ button { font: inherit; color: inherit; }
   .nitro { width: 84px; }
 }
 
-/* banner, toast, nitro button */
+/* banner, nitro button */
 
 .banner {
   position: fixed;
@@ -139,48 +140,14 @@ button { font: inherit; color: inherit; }
   100% { opacity: 0; }
 }
 
-.toast {
-  position: fixed;
-  left: 50%;
-  top: 40%;
-  transform: translate(-50%, 0);
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(95, 180, 255, 0.92);
-  color: #04121f;
-  font-weight: 800;
-  font-size: 0.95rem;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-}
-.toast.show { opacity: 1; transform: translate(-50%, -8px); }
-
 .style-total { margin-top: 2px; font-family: var(--mono); font-size: 0.8125rem; color: #9fe0ff; font-weight: 700; }
-.style-pop {
-  position: fixed;
-  left: 50%;
-  bottom: 30%;
-  transform: translateX(-50%);
-  font-weight: 800;
-  font-size: clamp(1rem, 3.4vw, 1.4rem);
-  color: #9fe0ff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-  opacity: 0;
-  white-space: nowrap;
-}
-.style-pop.show { animation: pop-up 1.1s ease-out forwards; }
-@keyframes pop-up {
-  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.9); }
-  15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
-  70% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -30px) scale(1); }
-}
+.style-gain { min-height: 1.1em; font-family: var(--mono); font-size: 0.75rem; font-weight: 700; color: #9fe0ff; opacity: 0.85; }
+.style-gain.minus { color: #ff6b5b; }
+.time.pen { color: #ff6b5b; }
 .ach-toast {
   position: fixed;
   left: 50%;
-  top: calc(max(12px, env(safe-area-inset-top)) + 118px);
+  top: calc(max(12px, env(safe-area-inset-top)) + 140px);
   transform: translate(-50%, -40px);
   opacity: 0;
   display: grid;

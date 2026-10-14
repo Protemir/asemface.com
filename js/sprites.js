@@ -1059,7 +1059,7 @@ export const SPRITES = {
   // ---------- sheep ----------
 
   sheep: {
-    w: 330, h: 250, hit: 0, sheep: true,
+    w: 330, h: 250, hit: 0, sheep: true, centered: true,
     draw(c, x, y, w, h, s, env) {
       const dark = env.night * 0.6;
       const face = (s.vx || 0) >= 0 ? 1 : -1;
@@ -1085,7 +1085,7 @@ export const SPRITES = {
 
   // a hot baursak hovering over the road: pick it up for nitro
   baursak: {
-    w: 300, h: 300, hit: 0, pickup: true,
+    w: 300, h: 300, hit: 0, pickup: true, centered: true,
     draw(c, x, y, w, h, s, env) {
       const bob = Math.sin(env.time * 4 + (s.phase || 0)) * h * 0.08;
       const cx = x + w / 2;
@@ -1102,6 +1102,35 @@ export const SPRITES = {
         c.beginPath();
         c.ellipse(cx - w * 0.1, cy - h * 0.1, w * 0.07, h * 0.04, -0.4, 0, Math.PI * 2);
         c.fill();
+      }
+    },
+  },
+
+  // a tumbleweed rolling across the steppe road: a loose ball of dry twigs
+  tumble: {
+    w: 470, h: 470, hit: 0, tumble: true, centered: true,
+    draw(c, x, y, w, h, s, env) {
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const r = w * 0.46;
+      c.lineCap = 'round';
+      c.strokeStyle = mix('#b08a58', '#4a3a2a', env.night);
+      c.lineWidth = Math.max(1, w * 0.035);
+      for (let k = 0; k < 7; k++) {
+        c.beginPath();
+        c.ellipse(cx, cy, r * (0.55 + (k % 3) * 0.2), r * (0.35 + ((k * 2) % 3) * 0.25), (k * Math.PI) / 7, 0, Math.PI * 2);
+        c.stroke();
+      }
+      if (w > 14) {
+        c.strokeStyle = mix('#d6b27a', '#5e4a33', env.night);
+        c.lineWidth = Math.max(1, w * 0.02);
+        for (let k = 0; k < 9; k++) {
+          const a = (k / 9) * Math.PI * 2;
+          c.beginPath();
+          c.moveTo(cx + Math.cos(a) * r * 0.2, cy + Math.sin(a) * r * 0.2);
+          c.lineTo(cx + Math.cos(a + 0.6) * r * 0.95, cy + Math.sin(a + 0.6) * r * 0.95);
+          c.stroke();
+        }
       }
     },
   },

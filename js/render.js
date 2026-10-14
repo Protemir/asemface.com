@@ -1,4 +1,4 @@
-import { clamp, lerp, wrap, fogAt, rng, mix, rgba } from './util.js';
+import { clamp, lerp, wrap, fogAt, rng, mix, rgba, easeInOut } from './util.js';
 import { SEG, ROAD_W, CAM_H, CAM_DEPTH, PLAYER_Z, BASE_MAX, CAR_W, TUNNEL_H } from './track.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
 import { L } from './i18n.js';
@@ -13,6 +13,18 @@ function offscreen(w, h) {
   return c;
 }
 
+// puddles on the asphalt and what they leave on the glass
+const PUDDLE = {
+  water: { body: 'rgba(70,90,120,0.55)', shine: 'rgba(200,220,255,0.35)' },
+  slush: { body: 'rgba(150,146,135,0.85)', shine: 'rgba(235,238,242,0.5)' },
+  mud: { body: 'rgba(88,62,38,0.9)', shine: 'rgba(160,120,80,0.35)' },
+};
+const SPLASH = {
+  water: { body: 'rgba(190,215,255,0.38)', shine: 'rgba(255,255,255,0.55)', smear: 'rgba(190,215,255,A)' },
+  slush: { body: 'rgba(214,218,224,0.9)', shine: 'rgba(255,255,255,0.7)', smear: 'rgba(214,218,224,A)' },
+  mud: { body: 'rgba(91,61,34,0.94)', shine: 'rgba(170,130,90,0.5)', smear: 'rgba(91,61,34,A)' },
+};
+
 export class Renderer {
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
@@ -20,6 +32,7 @@ export class Renderer {
     this.budget = opts.budget || 1500000;
     this.map = null;
     this.layers = {};
+    this.confetti = [];
     this.flakes = [];
   }
 
@@ -374,7 +387,7 @@ export class Renderer {
         this.poly(lx1 - l1 / 2, y1, lx1 + l1 / 2, y1, lx2 + l2 / 2, y2, lx2 - l2 / 2, y2, color.lane);
       }
     }
-    if (near && (seg.hole || seg.bump || seg.zebra)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2);
+    if (near && (seg.hole || seg.bump || seg.zebra || seg.puddle)) this.drawSurface(seg, x1, y1, w1, x2, y2, w2);
     if (seg.fog < 1) {
       c.globalAlpha = 1 - seg.fog;
       c.fillStyle = this.map.fogColor;
@@ -400,6 +413,24 @@ export class Renderer {
         const b = a + 2 / n;
         this.poly(x1 + w1 * a, y1, x1 + w1 * b, y1, x2 + w2 * b, y2, x2 + w2 * a, y2, k % 2 ? '#1e1f22' : '#e8b630');
       }
+    }
+    if (seg.puddle) {
+      const p = seg.puddle;
+      const col = PUDDLE[p.kind] || PUDDLE.water;
+      const wm = (w1 + w2) / 2;
+      const cx = (x1 + x2) / 2 + p.offset * wm;
+      const cy = (y1 + y2) / 2;
+      const rx = wm * p.size;
+      const ry = Math.max(1, (y1 - y2) * 1.1);
+      c.fillStyle = col.body;
+      c.beginPath();
+      c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      c.ellipse(cx + rx * 0.45, cy + ry * 0.2, rx * 0.6, ry * 0.75, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = col.shine;
+      c.beginPath();
+      c.ellipse(cx - rx * 0.15, cy - ry * 0.25, rx * 0.55, ry * 0.22, 0, 0, Math.PI * 2);
+      c.fill();
     }
     if (seg.hole) {
       const xm = (x1 + x2) / 2;
@@ -459,6 +490,158 @@ export class Renderer {
     });
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
+  }
+
+  // a puddle on the windscreen: blobs stay until the wipers sweep over them
+  drawMud(mud, now) {
+    const c = this.ctx;
+    const { W, H } = this;
+    const k = now - mud.t0;
+    const arm = Math.min(Math.max(W * 0.45, H * 0.5), H * 0.98);
+    const pivots = [[W * 0.3, H * 1.02], [W * 0.74, H * 1.02]];
+    const col = SPLASH[mud.kind] || SPLASH.mud;
+    // the blades go up from 0.5 s to 1 s and back down by 1.5 s
+    const lo = 0.04;
+    const hi = Math.PI - 0.04;
+    let angle = lo;
+    if (k > 0.5 && k < 1) angle = easeInOut(lo, hi, (k - 0.5) / 0.5);
+    else if (k >= 1 && k < 1.5) angle = easeInOut(hi, lo, (k - 1) / 0.5);
+    const swept = k >= 1 ? hi : k > 0.5 ? angle : 0;
+    const grow = Math.min(1, k / 0.08);
+    for (const b of mud.blobs) {
+      if (b.a < swept) continue;
+      const [px, py] = pivots[b.p];
+      const bx = px + Math.cos(b.a) * b.r * arm;
+      const by = py - Math.sin(b.a) * b.r * arm;
+      const size = b.s * arm * grow;
+      c.fillStyle = col.body;
+      c.beginPath();
+      c.arc(bx, by, size, 0, Math.PI * 2);
+      for (const [dx, dy, r] of b.dots) {
+        c.moveTo(bx + dx * size + r * size, by + dy * size);
+        c.arc(bx + dx * size, by + dy * size, r * size, 0, Math.PI * 2);
+      }
+      c.fill();
+      if (b.drip) c.fillRect(bx - size * 0.12, by, size * 0.24, size * b.drip * Math.min(1, k * 1.5));
+      c.fillStyle = col.shine;
+      c.beginPath();
+      c.arc(bx - size * 0.3, by - size * 0.3, size * 0.22, 0, Math.PI * 2);
+      c.fill();
+    }
+    // a thin smear where the blades went, fading out
+    if (k > 0.5) {
+      const fade = Math.max(0, Math.min(1, 1 - (k - 1.5) / 0.9));
+      c.fillStyle = col.smear.replace('A', String(0.22 * fade));
+      for (const [px, py] of pivots) {
+        c.beginPath();
+        c.arc(px, py, arm * 0.97, -lo, -swept, true);
+        c.arc(px, py, arm * 0.3, -swept, -lo, false);
+        c.closePath();
+        c.fill();
+      }
+    }
+    if (k > 0.45 && k < 1.6) {
+      c.lineCap = 'round';
+      for (const [px, py] of pivots) {
+        const ex = px + Math.cos(angle) * arm;
+        const ey = py - Math.sin(angle) * arm;
+        c.strokeStyle = '#1a1c22';
+        c.lineWidth = Math.max(4, W * 0.012);
+        c.beginPath();
+        c.moveTo(px, py);
+        c.lineTo(ex, ey);
+        c.stroke();
+        c.strokeStyle = '#0b0c10';
+        c.lineWidth = Math.max(7, W * 0.024);
+        c.beginPath();
+        c.moveTo(px + Math.cos(angle) * arm * 0.3, py - Math.sin(angle) * arm * 0.3);
+        c.lineTo(ex, ey);
+        c.stroke();
+      }
+      c.lineCap = 'butt';
+    }
+  }
+
+  // confetti over the whole screen
+  burstConfetti() {
+    const colors = ['#ffd166', '#ff8fbf', '#ffffff', '#06d6a0', '#8ecae6', '#ef476f'];
+    for (let k = 0; k < 140; k++) {
+      this.confetti.push({
+        x: Math.random() * this.W,
+        y: -Math.random() * this.H * 0.4,
+        vx: (Math.random() - 0.5) * this.W * 0.15,
+        vy: this.H * (0.2 + Math.random() * 0.25),
+        rot: Math.random() * 6,
+        spin: (Math.random() - 0.5) * 12,
+        life: 2.6 + Math.random(),
+        color: colors[k % colors.length],
+      });
+    }
+  }
+
+  drawConfetti(dt) {
+    const c = this.ctx;
+    const size = Math.max(4, Math.min(this.W, this.H) * 0.012);
+    this.confetti = this.confetti.filter((p) => {
+      p.life -= dt;
+      p.x += (p.vx + Math.sin(p.rot) * this.W * 0.05) * dt;
+      p.y += p.vy * dt;
+      p.rot += p.spin * dt;
+      if (p.life <= 0 || p.y > this.H + 20) return false;
+      c.globalAlpha = Math.min(1, p.life);
+      c.fillStyle = p.color;
+      c.save();
+      c.translate(p.x, p.y);
+      c.rotate(p.rot);
+      c.fillRect(-size / 2, -size * 0.3, size, size * 0.6 * Math.abs(Math.cos(p.rot * 1.3)) + 1);
+      c.restore();
+      return true;
+    });
+    c.globalAlpha = 1;
+  }
+
+  // a golden eagle crossing the sky now and then: long glides, a few slow flaps
+  drawEagle(view) {
+    const dt = view.still ? 0 : Math.min(0.05, view.dt || 0);
+    const { W, H, HORIZON } = this;
+    if (!this.eagle) this.eagle = { wait: 3 + Math.random() * 5 };
+    const e = this.eagle;
+    if (e.wait > 0) {
+      e.wait -= dt;
+      if (e.wait > 0) return;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      Object.assign(e, { x: dir > 0 ? -W * 0.1 : W * 1.1, y0: HORIZON * (0.2 + Math.random() * 0.35), dir, t: 0, s: Math.max(16, Math.min(W, H) * (0.05 + Math.random() * 0.03)) });
+    }
+    e.t += dt;
+    e.x += e.dir * W * 0.08 * dt;
+    if (e.x < -W * 0.15 || e.x > W * 1.15) {
+      e.wait = 14 + Math.random() * 16;
+      return;
+    }
+    const y = e.y0 + Math.sin(e.t * 0.7) * H * 0.02;
+    const flap = e.t % 5 < 1.3 ? Math.sin(e.t * 8) : 0.2;
+    const s = e.s;
+    const lift = flap * s * 0.35;
+    const c = this.ctx;
+    c.save();
+    c.translate(e.x, y);
+    c.scale(e.dir, 1);
+    c.fillStyle = this.map.sky.night > 0.5 ? '#0d0f14' : '#2b2118';
+    c.beginPath();
+    c.moveTo(-s * 1.1, -lift - s * 0.05);
+    c.quadraticCurveTo(-s * 0.5, -s * 0.25 - lift * 0.5, 0, 0);
+    c.quadraticCurveTo(s * 0.5, -s * 0.25 - lift * 0.5, s * 1.1, -lift - s * 0.05);
+    c.quadraticCurveTo(s * 0.5, -s * 0.02 - lift * 0.3, 0, s * 0.14);
+    c.quadraticCurveTo(-s * 0.5, -s * 0.02 - lift * 0.3, -s * 1.1, -lift - s * 0.05);
+    c.fill();
+    c.beginPath();
+    c.ellipse(s * 0.2, s * 0.05, s * 0.32, s * 0.1, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#c99a4a';
+    c.beginPath();
+    c.arc(s * 0.48, s * 0.02, s * 0.08, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
   }
 
   // a watermelon in the face: pink splashes that slide away
@@ -557,7 +740,18 @@ export class Renderer {
     const c = this.ctx;
     c.globalAlpha = seg.fog;
     const draw = () => {
+      if (car.weaver && dw > 6) {
+        // neon under the car, pulsing
+        c.save();
+        c.globalCompositeOperation = 'lighter';
+        c.fillStyle = `rgba(0,220,255,${0.28 + Math.sin(env.time * 6) * 0.1})`;
+        c.beginPath();
+        c.ellipse(x, y - dh * 0.02, dw * 0.64, Math.max(1.5, dh * 0.13), 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
       drawVehicle(c, x - dw / 2, y - dh, dw, dh, car.kind, car.color, { front: car.dir < 0, lights: env.lights });
+      if (car.wedding && dw > 6) this.drawWedding(car, x, y, dw, dh, env);
       if (car.melonTruck && dw > 8) {
         // an open cargo box piled with watermelons
         c.fillStyle = '#2f7d3a';
@@ -579,6 +773,70 @@ export class Renderer {
     if (y > seg.clip) this.withClip(seg.clip, draw);
     else draw();
     c.globalAlpha = 1;
+  }
+
+  // ribbons and a bow on the boot, balloons on the mirrors, rings on the lead car
+  drawWedding(car, x, y, dw, dh, env) {
+    const c = this.ctx;
+    const top = y - dh;
+    c.fillStyle = '#ff8fbf';
+    c.fillRect(x - dw * 0.46, top + dh * 0.52, dw * 0.92, Math.max(1, dh * 0.06));
+    if (dw > 14) {
+      c.beginPath();
+      c.moveTo(x, top + dh * 0.55);
+      c.lineTo(x - dw * 0.09, top + dh * 0.45);
+      c.lineTo(x - dw * 0.09, top + dh * 0.65);
+      c.closePath();
+      c.moveTo(x, top + dh * 0.55);
+      c.lineTo(x + dw * 0.09, top + dh * 0.45);
+      c.lineTo(x + dw * 0.09, top + dh * 0.65);
+      c.closePath();
+      c.fill();
+    }
+    const gone = car.balloonT ? env.time - car.balloonT : 0;
+    if (gone < 2.5) {
+      const alpha = c.globalAlpha;
+      c.globalAlpha = alpha * (gone ? Math.max(0, 1 - gone / 2.5) : 1);
+      const rise = gone * dw * 1.6;
+      for (const side of [-1, 1]) {
+        const ax = x + side * dw * 0.47;
+        const ay = top + dh * 0.32;
+        for (let k = 0; k < 3; k++) {
+          const sway = Math.sin(env.time * 2.6 + k * 2 + side) * dw * 0.03 + side * gone * dw * 0.3;
+          const bx = ax + side * (k - 1) * dw * 0.07 + sway;
+          const r = dw * 0.075;
+          const by = top - dw * (0.2 + k * 0.07) - rise;
+          if (!gone && dw > 10) {
+            c.strokeStyle = 'rgba(255,255,255,0.6)';
+            c.lineWidth = 1;
+            c.beginPath();
+            c.moveTo(ax, ay);
+            c.lineTo(bx, by + r * 1.1);
+            c.stroke();
+          }
+          c.fillStyle = car.balloons[(k + (side > 0 ? 1 : 0)) % car.balloons.length];
+          c.beginPath();
+          c.ellipse(bx, by, r, r * 1.18, 0, 0, Math.PI * 2);
+          c.fill();
+          if (dw > 18) {
+            c.fillStyle = 'rgba(255,255,255,0.45)';
+            c.beginPath();
+            c.ellipse(bx - r * 0.35, by - r * 0.4, r * 0.22, r * 0.32, -0.5, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+      }
+      c.globalAlpha = alpha;
+    }
+    if (car.lead && dw > 10) {
+      c.strokeStyle = '#ffd166';
+      c.lineWidth = Math.max(1.2, dw * 0.028);
+      for (const k of [-1, 1]) {
+        c.beginPath();
+        c.arc(x + k * dw * 0.055, top - dw * 0.07, dw * 0.085, 0, Math.PI * 2);
+        c.stroke();
+      }
+    }
   }
 
   bubble(text, x, bottom, dw) {
@@ -823,6 +1081,7 @@ export class Renderer {
       bottom = wy + wh;
       bottomColor = m.water.bottom;
     }
+    if (m.eagle) this.drawEagle(view);
     c.fillStyle = bottomColor;
     c.fillRect(0, bottom - 1, W, H);
 
@@ -855,7 +1114,7 @@ export class Renderer {
       for (const s of seg.sprites) {
         const scale = seg.p1.scale;
         const sx = seg.p1.sx + scale * s.offset * ROAD_W * this.FX;
-        this.drawSprite(s, scale, sx, seg.p1.sy, s.offset < 0 ? -1 : 0, seg.clip, seg.fog, env);
+        this.drawSprite(s, scale, sx, seg.p1.sy, s.def.centered ? -0.5 : s.offset < 0 ? -1 : 0, seg.clip, seg.fog, env);
       }
       for (const car of seg.cars) this.drawCar(car, seg, env);
       if (seg === pSeg && view.car) this.drawPlayer(view, pSeg, pPct, env);
@@ -866,6 +1125,8 @@ export class Renderer {
     if (view.boosting) this.drawSpeedLines();
     if (view.splat > 0) this.drawSplat(view.splat);
     c.drawImage(L.vignette, 0, 0);
+    if (view.mud) this.drawMud(view.mud, view.time);
+    if (this.confetti.length) this.drawConfetti(view.still ? 0 : Math.min(0.05, view.dt || 0));
     if (this.body && this.body.type === 'sun') {
       c.globalCompositeOperation = 'lighter';
       const g = c.createRadialGradient(this.body.x, this.body.y, 0, this.body.x, this.body.y, Math.max(W, H) * 0.45);

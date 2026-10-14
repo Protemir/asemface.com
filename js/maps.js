@@ -63,6 +63,9 @@ export const MAPS = [
     },
     police: [[0, 380], [3, 180]],
     holes: 0.006,
+    puddles: { kind: 'water', rate: 0.005 },
+    wedding: true,
+    weaver: true,
     bumps: [[0, 300], [1, 200], [3, 300]],
     fireworks: true,
     build(T) {
@@ -146,6 +149,8 @@ export const MAPS = [
     police: [[2, 150]],
     herds: [[0, 300, 7]],
     holes: 0.004,
+    puddles: { kind: 'slush', rate: 0.004 },
+    eagle: true,
     build(T) {
       T.zone().road(40, 40, 40, 0, 10).road(40, 40, 40, 4, 20).road(30, 30, 30, -5, 15).road(30, 40, 30, 5, 15).road(30, 30, 30, -3, 10);
       T.zone().road(20, 20, 20, 0, 5).tunnel(true).road(20, 60, 20, 3, 10).tunnel(false).road(20, 30, 20, -4, 5).tunnel(true).road(30, 60, 30, -2, 10).tunnel(false).road(30, 30, 30, 5, 10);
@@ -221,6 +226,8 @@ export const MAPS = [
     },
     herds: [[1, 260, 6]],
     holes: 0.003,
+    puddles: { kind: 'slush', rate: 0.003 },
+    eagle: true,
     build(T) {
       T.zone().road(40, 40, 40, 6, 20).road(30, 30, 30, -6, 20).road(30, 30, 30, 6, 20).road(30, 30, 30, -6, 15).road(30, 40, 30, 4, 10);
       T.zone().road(50, 80, 50, -2, 25).road(40, 60, 40, 3, 15).road(30, 30, 30, -4, 10);
@@ -293,6 +300,9 @@ export const MAPS = [
     },
     police: [[0, 250], [1, 380]],
     holes: 0.006,
+    puddles: { kind: 'mud', rate: 0.007 },
+    tumbleweeds: 14,
+    wedding: true,
     melonTrucks: 2,
     herds: [[1, 120, 9], [1, 470, 8], [2, 230, 7]],
     build(T) {
@@ -367,6 +377,8 @@ export const MAPS = [
     },
     police: [[1, 120]],
     holes: 0.004,
+    tumbleweeds: 12,
+    eagle: true,
     herds: [[0, 330, 7]],
     build(T) {
       T.zone().road(50, 60, 50, 0, 0).road(40, 40, 40, 3, -20).road(40, 40, 40, -3, 20).road(40, 40, 40, 0, 0);

@@ -240,3 +240,78 @@ export function bleat() {
   o.stop(t + 0.52);
   lfo.stop(t + 0.52);
 }
+
+// one short horn note, for the tunes below
+function toot(at, hz, dur, vol = 0.07) {
+  const c = sound.ctx;
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 1800;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(vol, at + 0.015);
+  g.gain.setValueAtTime(vol, at + dur * 0.75);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+  f.connect(g).connect(c.destination);
+  for (const k of [1, 1.26]) {
+    const o = c.createOscillator();
+    o.type = 'square';
+    o.frequency.value = hz * k;
+    o.connect(f);
+    o.start(at);
+    o.stop(at + dur + 0.02);
+  }
+}
+
+// a wedding convoy: every car honks the same quick rhythm
+export function weddingHorn() {
+  if (!sound.on || !sound.ctx) return;
+  const t = sound.ctx.currentTime;
+  [0, 0.16, 0.32, 0.48, 0.72, 0.88, 1.04].forEach((d, k) => toot(t + d, k < 4 ? 440 : 494, 0.12, 0.05));
+}
+
+// the lane-weaving guy has a musical horn, of course
+export function cucaracha() {
+  if (!sound.on || !sound.ctx) return;
+  const t = sound.ctx.currentTime;
+  const notes = [[392, 0], [392, 0.12], [392, 0.24], [523, 0.36], [659, 0.66], [392, 0.96], [392, 1.08], [392, 1.2], [523, 1.32], [659, 1.62]];
+  for (const [hz, d] of notes) toot(t + d, hz, 0.11, 0.045);
+}
+
+// a puddle under the wheels
+export function splash() {
+  if (!sound.on || !sound.ctx) return;
+  noise(0.4, 0.35, 2400);
+  setTimeout(() => noise(0.25, 0.15, 900), 60);
+}
+
+// a wiper blade on glass
+export function squeak() {
+  if (!sound.on || !sound.ctx) return;
+  const c = sound.ctx;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(1500, t);
+  o.frequency.linearRampToValueAtTime(1900, t + 0.18);
+  o.frequency.linearRampToValueAtTime(1400, t + 0.32);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.025, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+  o.connect(g).connect(c.destination);
+  o.start(t);
+  o.stop(t + 0.36);
+}
+
+// balloons popping one after another
+export function pops(n = 3) {
+  if (!sound.on || !sound.ctx) return;
+  for (let k = 0; k < n; k++) setTimeout(() => noise(0.05, 0.4, 5000), k * 90 + Math.random() * 40);
+}
+
+// dry twigs breaking
+export function crunch() {
+  if (!sound.on || !sound.ctx) return;
+  for (let k = 0; k < 4; k++) setTimeout(() => noise(0.04, 0.22, 3500 + Math.random() * 2000), k * 35);
+}
