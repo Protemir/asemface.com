@@ -575,13 +575,14 @@ export const CHAPTERS = [
   },
 ];
 
-// Asem's friends: they race along in every run, with their names over the cars
+// Asem's friends: they race along in every run, with their names over the cars;
+// car models are written in Latin letters in both languages
 export const FRIENDS = [
-  { name: { ru: 'Даур', en: 'Daur' }, model: { ru: 'Шкода', en: 'Škoda' }, kind: 'octavia', color: '#18a39a' },
-  { name: { ru: 'Ора', en: 'Ora' }, model: { ru: 'Соренто', en: 'Sorento' }, kind: 'sorento', color: '#f08a24' },
-  { name: { ru: 'Сакен', en: 'Saken' }, model: { ru: 'Киа', en: 'Kia' }, kind: 'kia', color: '#3f6fd8' },
-  { name: { ru: 'Ера', en: 'Era' }, model: { ru: 'Фольксваген', en: 'Volkswagen' }, kind: 'golf', color: '#eeeeee' },
-  { name: { ru: 'Тима', en: 'Tima' }, model: { ru: 'Чанган', en: 'Changan' }, kind: 'changan', color: '#6b8e23' },
+  { name: { ru: 'Даур', en: 'Daur' }, model: 'Skoda', kind: 'octavia', color: '#18a39a' },
+  { name: { ru: 'Ора', en: 'Ora' }, model: 'Sorento', kind: 'sorento', color: '#f08a24' },
+  { name: { ru: 'Сакен', en: 'Saken' }, model: 'Kia', kind: 'kia', color: '#3f6fd8' },
+  { name: { ru: 'Ера', en: 'Era' }, model: 'Volkswagen', kind: 'golf', color: '#eeeeee' },
+  { name: { ru: 'Тима', en: 'Tima' }, model: 'Changan', kind: 'changan', color: '#6b8e23' },
 ];
 
 export const CARS = [
