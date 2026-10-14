@@ -4,78 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Әсем Жол: ночная гонка по Алматы</title>
-<meta name="description" content="Браузерная гонка по ночной Алматы: от проспекта Абая через Аль-Фараби и горную дорогу до Медеу. Обгоняй, успевай к чекпоинтам, бей свой рекорд.">
+<meta name="description" content="Браузерная гонка по Алматы и горам вокруг: ночной город, дорога на Медеу, Шымбулак на рассвете, Капчагай на закате и Чарынский каньон. Сюжет из пяти глав и свободная езда.">
 <link rel="canonical" href="https://asemface.com/">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#070b1a">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://asemface.com/">
-<meta property="og:title" content="Әсем Жол: ночная гонка по Алматы">
-<meta property="og:description" content="От проспекта Абая до Медеу. Обгоняй, успевай к чекпоинтам, бей свой рекорд.">
+<meta property="og:title" content="Әсем Жол: гонка по Алматы и горам">
+<meta property="og:description" content="Ночной город, Медеу, Шымбулак, Капчагай и Чарын. Пять глав сюжета и свободная езда прямо в браузере.">
 <meta property="og:image" content="https://asemface.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="style.css">
-<script src="game.js" defer></script>
+<script type="module" src="js/main.js"></script>
 </head>
 <body>
 <canvas id="game" aria-label="Әсем Жол"></canvas>
 
 <div class="hud" id="hud" hidden>
   <div class="hud-block hud-left">
-    <p class="speed"><b id="hudSpeed">0</b> <span data-i18n="kmh">км/ч</span></p>
-    <p class="dist" id="hudDist">0,00 км</p>
+    <p class="speed"><b id="hudSpeed">0</b> <span id="hudKmh">км/ч</span></p>
+    <p class="dist" id="hudDist"></p>
+    <div class="nitro" aria-hidden="true"><i id="hudNitro"></i></div>
   </div>
   <div class="hud-block hud-center">
     <p class="time" id="hudTime">0</p>
     <p class="zone" id="hudZone"></p>
+    <p class="place" id="hudPlace"></p>
   </div>
   <div class="hud-right">
     <button type="button" class="icon-btn" id="pauseBtn" aria-label="Пауза">II</button>
-    <button type="button" class="icon-btn" id="muteBtn" aria-label="Звук"></button>
+    <button type="button" class="icon-btn" id="muteBtn">Звук</button>
   </div>
 </div>
 
 <div class="banner" id="banner" aria-live="polite"></div>
+<div class="toast" id="toast" aria-live="polite"></div>
+<button type="button" class="nitro-btn" id="nitroBtn" hidden aria-label="Нитро">N</button>
 
-<section class="panel" id="menu">
-  <div class="panel-top">
-    <span class="mark" aria-hidden="true"></span>
-    <div class="langs" role="group" aria-label="Language">
-      <button type="button" data-lang="ru" aria-pressed="true">RU</button>
-      <button type="button" data-lang="en" aria-pressed="false">EN</button>
-    </div>
-  </div>
-  <h1>Әсем Жол</h1>
-  <p class="tag" data-i18n="tag">Ночная гонка по Алматы до Медеу. Обгоняй, успевай к чекпоинтам, бей свой рекорд.</p>
-  <button type="button" class="btn primary" id="startBtn" data-i18n="start">Поехали</button>
-  <p class="keys" id="keys"></p>
-  <p class="best" id="menuBest"></p>
-  <a class="more" href="https://gamemetric.dev/" data-i18n="more">Ещё игра: тест реакции на gamemetric.dev</a>
-</section>
-
-<section class="panel" id="pause" hidden>
-  <h2 data-i18n="paused">Пауза</h2>
-  <div class="row">
-    <button type="button" class="btn primary" id="resumeBtn" data-i18n="resume">Продолжить</button>
-    <button type="button" class="btn" id="restartBtn" data-i18n="restart">Заново</button>
-  </div>
-</section>
-
-<section class="panel" id="over" hidden>
-  <h2 data-i18n="overTitle">Время вышло</h2>
-  <p class="over-label" data-i18n="overSub">Проехано</p>
-  <p class="over-dist" id="overDist">0,00 км</p>
-  <p class="record" id="overRecord" hidden data-i18n="record">Новый рекорд</p>
-  <p class="best" id="overBest"></p>
-  <div class="row">
-    <button type="button" class="btn primary" id="againBtn" data-i18n="again">Ещё раз</button>
-    <button type="button" class="btn" id="shareBtn" data-i18n="share">Поделиться</button>
-  </div>
-  <p class="note" id="overNote" aria-live="polite"></p>
-</section>
+<div id="ui"></div>
 
 <noscript><p class="noscript">Для игры нужен JavaScript.</p></noscript>
 </body>

@@ -1,0 +1,215 @@
+import { easeIn, easeInOut, wrap, rng, mix } from './util.js';
+import { SPRITES, VEHICLES } from './sprites.js';
+
+// The road is the classic pseudo-3D one: a list of flat segments projected onto
+// the screen, with curves faked by shifting each segment sideways.
+export const SEG = 200;
+export const RUMBLE = 3;
+export const ROAD_W = 2000;
+export const CAM_H = 1000;
+export const FOV = 100;
+export const CAM_DEPTH = 1 / Math.tan(((FOV / 2) * Math.PI) / 180);
+export const PLAYER_Z = CAM_H * CAM_DEPTH;
+export const BASE_MAX = SEG * 60;
+export const CAR_W = 640;
+export const PLAYER_W = CAR_W / ROAD_W;
+export const KMH_AT_MAX = 240;
+export const TUNNEL_H = 2300;
+export const GATE_AT = 8;
+export const M_PER_SEG = KMH_AT_MAX / 3.6 / 60;
+
+export class Track {
+  constructor(map) {
+    this.map = map;
+    this.segments = [];
+    this.zoneStart = [];
+    this.zoneIndex = -1;
+    this.inTunnel = false;
+    this.lanes = map.lanes;
+    this.laneX = map.lanes === 3 ? [-2 / 3, 0, 2 / 3] : [-0.5, 0.5];
+    this.cars = [];
+    map.build(this);
+    this.length = this.segments.length * SEG;
+    this.zoneSeconds = this.zoneStart.map((start, z) => {
+      const end = z + 1 < this.zoneStart.length ? this.zoneStart[z + 1] : this.segments.length;
+      return Math.round((end - start) / 52);
+    });
+    const r = rng(map.seed || 1);
+    for (const seg of this.segments) map.decorate(this, seg, r);
+    for (const [i, type, offset, extra] of map.extras ? map.extras(this) : []) this.addSprite(i, type, offset, extra, true);
+    for (let z = 0; z < this.zoneStart.length; z++) {
+      const seg = this.segments[this.zoneStart[z] + GATE_AT];
+      seg.gate = z + 1;
+      seg.sprites = seg.sprites.filter((s) => Math.abs(s.offset) > 1.7);
+    }
+    this.light();
+    this.paint();
+  }
+
+  // ---------- builder API used by maps ----------
+
+  lastY() {
+    return this.segments.length ? this.segments[this.segments.length - 1].p2.y : 0;
+  }
+  addSegment(curve, y) {
+    const n = this.segments.length;
+    this.segments.push({
+      i: n,
+      p1: { y: this.lastY(), z: n * SEG },
+      p2: { y, z: (n + 1) * SEG },
+      curve,
+      zone: this.zoneIndex,
+      sprites: [],
+      cars: [],
+      gate: 0,
+      lit: 0,
+      tunnel: this.inTunnel,
+    });
+  }
+  road(enter, hold, leave, curve = 0, hill = 0) {
+    const startY = this.lastY();
+    const endY = startY + Math.round(hill) * SEG;
+    const total = enter + hold + leave;
+    for (let n = 0; n < enter; n++) this.addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total));
+    for (let n = 0; n < hold; n++) this.addSegment(curve, easeInOut(startY, endY, (enter + n) / total));
+    for (let n = 0; n < leave; n++) this.addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total));
+    return this;
+  }
+  zone() {
+    this.zoneIndex++;
+    this.zoneStart[this.zoneIndex] = this.segments.length;
+    return this;
+  }
+  tunnel(on) {
+    this.inTunnel = on;
+    return this;
+  }
+  // brings the road back to the starting height so the lap loops cleanly
+  home(len = 100, curve = 2) {
+    this.road(len, len, len, curve, -Math.round(this.lastY() / SEG));
+    this.road(30, 40, 30, 0, 0);
+    return this;
+  }
+
+  addSprite(i, type, offset, extra, force) {
+    const seg = this.segments[wrap(i, this.segments.length)];
+    if (!force && seg.tunnel && offset > 0) return;
+    const def = SPRITES[type];
+    if (!def) return;
+    if (force) {
+      seg.sprites = seg.sprites.filter((s) => Math.sign(s.offset) !== Math.sign(offset) || Math.abs(Math.abs(s.offset) - Math.abs(offset)) > 0.9);
+    }
+    seg.sprites.push({ def, type, offset, ...extra });
+  }
+
+  segAt(z) {
+    return this.segments[Math.floor(z / SEG) % this.segments.length];
+  }
+
+  // ---------- colors ----------
+
+  light() {
+    const N = this.segments.length;
+    for (const seg of this.segments) {
+      const lamp = seg.sprites.some((s) => s.type === 'lamp') || (seg.tunnel && seg.i % 6 === 0);
+      if (!lamp) continue;
+      for (let d = -4; d <= 4; d++) {
+        const other = this.segments[wrap(seg.i + d, N)];
+        other.lit = Math.max(other.lit, 1 - Math.abs(d) / 5);
+      }
+    }
+  }
+
+  paint() {
+    const m = this.map;
+    const night = m.sky.night;
+    for (const seg of this.segments) {
+      const light = Math.floor(seg.i / RUMBLE) % 2 === 0;
+      const ground = m.ground[Math.max(0, seg.zone)] || m.ground[0];
+      const k = seg.lit * night;
+      let road = mix(m.road[light ? 0 : 1], '#e9b36d', k * 0.2);
+      let grass = mix(ground[light ? 0 : 1], '#e9b36d', k * 0.12);
+      let rumble = light ? mix(m.rumble[0], '#ffe2b0', k * 0.3) : mix(m.rumble[1], '#e06a50', k * 0.25);
+      let lane = light ? mix(m.lane, '#fff0d0', k * 0.4) : null;
+      if (m.lanes === 2 && m.solidCenter) lane = mix(m.lane, '#fff0d0', k * 0.3);
+      if (seg.tunnel) {
+        const dim = 0.45 - seg.lit * 0.25;
+        road = mix(road, '#05070c', dim);
+        grass = mix('#3a3e47', '#05070c', dim + 0.1);
+        rumble = mix(rumble, '#05070c', dim);
+        if (lane) lane = mix(lane, '#05070c', dim * 0.6);
+      }
+      seg.color = { road, grass, rumble, lane };
+    }
+  }
+
+  // ---------- traffic ----------
+
+  // the five friends start a little ahead and race the whole lap
+  addFriends(list, seed) {
+    const r = rng(seed);
+    list.forEach((f, k) => {
+      const segIndex = GATE_AT + 24 + k * 16 + Math.floor(r() * 8);
+      const lane = this.lanes === 3 ? this.laneX[k % 3] : this.laneX[1];
+      const base = BASE_MAX * (0.68 + k * 0.025 + r() * 0.03);
+      const car = {
+        offset: lane,
+        target: lane,
+        z: segIndex * SEG,
+        speed: base,
+        base,
+        dir: 1,
+        kind: f.kind,
+        w: CAR_W * (VEHICLES[f.kind] ? VEHICLES[f.kind].scale : 1),
+        color: f.color,
+        percent: 0,
+        rel: null,
+        friend: true,
+        name: f.name,
+        travel: segIndex * SEG,
+      };
+      this.segments[segIndex].cars.push(car);
+      this.cars.push(car);
+    });
+  }
+
+  spawnCars(seed, scale = 1) {
+    for (const seg of this.segments) seg.cars.length = 0;
+    this.cars = [];
+    const tr = this.map.traffic;
+    const r = rng(seed);
+    const count = Math.round(tr.count * scale);
+    const pick = () => {
+      const roll = r() * tr.kinds.reduce((a, k) => a + k[1], 0);
+      let acc = 0;
+      for (const [kind, weight] of tr.kinds) {
+        acc += weight;
+        if (roll <= acc) return kind;
+      }
+      return tr.kinds[0][0];
+    };
+    for (let n = 0; n < count; n++) {
+      const oncoming = this.lanes === 2 && r() < (tr.oncoming || 0);
+      const segIndex = 50 + Math.floor(r() * (this.segments.length - 70));
+      const kind = pick();
+      const big = kind === 'truck' || kind === 'bus';
+      let offset;
+      if (this.lanes === 3) offset = this.laneX[Math.floor(r() * 3)];
+      else offset = oncoming ? this.laneX[0] : this.laneX[1];
+      const base = BASE_MAX * (tr.min + r() * (tr.max - tr.min)) * (big ? 0.82 : 1);
+      const car = {
+        offset: offset + (r() - 0.5) * 0.08,
+        z: segIndex * SEG,
+        speed: oncoming ? -base : base,
+        dir: oncoming ? -1 : 1,
+        kind,
+        w: CAR_W * (VEHICLES[kind] ? VEHICLES[kind].scale : 1),
+        color: tr.colors[Math.floor(r() * tr.colors.length)],
+        percent: 0,
+        rel: null,
+      };
+      this.segments[segIndex].cars.push(car);
+      this.cars.push(car);
+    }
+  }
+}

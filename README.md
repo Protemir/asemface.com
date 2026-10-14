@@ -1,11 +1,21 @@
 # asemface.com: Әсем Жол
 
-A small night racing game in the browser. You drive through Almaty: Abay Avenue, Al-Farabi, the mountain road and up to Medeu, then back down to the city for the next lap. Overtake traffic, hit the checkpoints before the clock runs out, beat your best distance.
+A racing game in the browser, set in Almaty and the mountains around it.
 
-Plain canvas and JS, no build step, no images, no requests. Everything you see (cars, poplars, apple trees, pines, buildings, lamps, the Alatau on the horizon) is drawn with canvas shapes. Best distance and settings stay in localStorage.
+There is a story of five chapters. Asem gets a late order: hot baursaks to Shymbulak by sunrise. Each chapter is one lap of its own map with a finish line, checkpoints that add time and up to three stars for a fast run:
 
-Controls: arrows or A/D to steer, down or space to brake, P to pause, M for sound. On a phone, hold the left or right half of the screen to steer and both halves to brake. The gas is automatic.
+1. Almaty by night: Abay, Al-Farabi, up to Kok-Tobe and back along Dostyk.
+2. The road to Medeu: snow, switchbacks, avalanche galleries, oncoming traffic.
+3. Shymbulak at dawn: pink snow on the peaks, the cable car, the pass.
+4. Kapchagay at sunset: steppe, trucks, yurts, camels, wind turbines and the lake.
+5. Charyn: red table mountains, rock pillars and the ash grove.
 
-The road uses the classic pseudo-3D segment projection. Jake Gordon's write-up of his javascript-racer explains it best.
+Five friends race along in every run (Daurito, Orito, Sakito, Erito and Timito), with their names over their cars, and the HUD shows your place. Overtakes, especially close ones, fill the nitro. Free ride gives endless laps on any map you have reached, with a best distance per map. The garage has three cars that open with stars.
 
-Run it with any static server, for example `npx serve .`. `?debug` exposes `window.__asem` for stepping the game by hand, `?og` renders the clean frame used for `og.png`.
+Plain canvas and JS modules, no build step, no images, no requests. Everything you see is drawn with canvas shapes. Progress stays in localStorage.
+
+Controls: arrows or A/D to steer, down or space to brake, up, W or Shift for nitro, P to pause, M for sound. On a phone, hold the left or right half of the screen to steer, both halves to brake, and the round button for nitro. The gas is automatic.
+
+Code: `js/maps.js` holds the maps, chapters, friends and cars, `js/track.js` the road and traffic, `js/render.js` the drawing, `js/sprites.js` every object and vehicle, `js/main.js` the game itself. The road uses the classic pseudo-3D segment projection; Jake Gordon's write-up of his javascript-racer explains it best.
+
+Run it with any static server, for example `npx serve .` (modules do not load from `file://`). `?debug` exposes `window.__asem` for stepping the game by hand, `?og&map=kapchagay` renders the clean frame used for `og.png`.
