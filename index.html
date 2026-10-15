@@ -2,105 +2,40 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Әсем Жол — гонки на машинах по Алматы, играть онлайн бесплатно</title>
-<meta name="description" content="Бесплатные гонки на машинах в браузере: ночной Алматы, Медеу, Шымбулак, Капчагай, Чарын, Кольсай и новогодняя Астана. Сюжет из 7 глав, гараж, нитро, обгоны. Без скачивания, на телефоне и ПК.">
-<link rel="canonical" href="https://asemface.com/">
-<link rel="alternate" hreflang="ru" href="https://asemface.com/?lang=ru">
-<link rel="alternate" hreflang="en" href="https://asemface.com/?lang=en">
-<link rel="alternate" hreflang="x-default" href="https://asemface.com/">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Әсем Жол">
-<meta name="theme-color" content="#070b1a">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://asemface.com/">
-<meta property="og:title" content="Әсем Жол — гонки на машинах по Алматы и горам">
-<meta property="og:description" content="Ночной Алматы, Медеу, Шымбулак, Капчагай, Чарын, Кольсай и Астана. Семь глав сюжета, гараж и свободная езда прямо в браузере, бесплатно.">
-<meta property="og:image" content="https://asemface.com/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">
-{
- "@context": "https://schema.org",
- "@type": "VideoGame",
- "name": "Әсем Жол",
- "alternateName": "Asem Road",
- "url": "https://asemface.com/",
- "image": "https://asemface.com/og.png",
- "description": "Бесплатные гонки на машинах в браузере: ночной Алматы, Медеу, Шымбулак, Капчагай, Чарын, Кольсай и новогодняя Астана. Сюжет из 7 глав, гараж, нитро, обгоны. Без скачивания, на телефоне и ПК.",
- "genre": [
-  "Racing",
-  "Arcade",
-  "Driving"
- ],
- "gamePlatform": [
-  "Web browser",
-  "Android",
-  "iOS",
-  "Windows",
-  "macOS"
- ],
- "applicationCategory": "Game",
- "operatingSystem": "Any",
- "inLanguage": [
-  "ru",
-  "en"
- ],
- "isAccessibleForFree": true,
- "offers": {
-  "@type": "Offer",
-  "price": "0",
-  "priceCurrency": "USD"
- },
- "author": {
-  "@type": "Organization",
-  "name": "TEMIRLAB",
-  "url": "https://temirlab.com/"
- }
-}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Әсем Жол переехала на gamemetric.dev/asem/</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://gamemetric.dev/asem/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff8a3d'/%3E%3C/svg%3E">
+<script>
+  // Әсем Жол now lives at gamemetric.dev/asem/. The saves of this browser go along in the address
+  // (#move=<base64url of {key: value}>), the game puts them back into its own storage once.
+  (function () {
+    var to = 'https://gamemetric.dev/asem/' + location.search;
+    try {
+      var data = {};
+      var n = 0;
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('asem.') === 0) {
+          data[k] = localStorage.getItem(k);
+          n++;
+        }
+      }
+      if (n) to += '#move=' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {}
+    location.replace(to);
+  })();
 </script>
-<link rel="stylesheet" href="style.css">
-<script type="module" src="js/main.js"></script>
+<noscript><meta http-equiv="refresh" content="0; url=https://gamemetric.dev/asem/"></noscript>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #070b1a; color: #f3eef6;
+         font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; text-align: center; padding: 24px; }
+  a { color: #ffb547; }
+</style>
 </head>
 <body>
-<canvas id="game" aria-label="Әсем Жол"></canvas>
-
-<div class="hud" id="hud" hidden>
-  <div class="hud-block hud-left">
-    <p class="speed"><b id="hudSpeed">0</b> <span id="hudKmh">км/ч</span></p>
-    <p class="dist" id="hudDist"></p>
-    <div class="nitro" aria-hidden="true"><i id="hudNitro"></i></div>
-  </div>
-  <div class="hud-block hud-center">
-    <p class="time" id="hudTime">0</p>
-    <p class="zone" id="hudZone"></p>
-    <p class="place" id="hudPlace"></p>
-    <p class="style-total" id="hudStyle"></p>
-    <p class="style-gain" id="hudGain" aria-hidden="true"></p>
-  </div>
-  <div class="hud-right">
-    <div class="hud-btns">
-      <button type="button" class="icon-btn" id="pauseBtn" aria-label="Пауза">II</button>
-      <button type="button" class="icon-btn" id="musicBtn" aria-label="Музыка">♪</button>
-      <button type="button" class="icon-btn" id="muteBtn">Звук</button>
-    </div>
-    <button type="button" class="icon-btn" id="fullBtn" aria-label="На весь экран" hidden></button>
-  </div>
-</div>
-
-<div class="banner" id="banner" aria-live="polite"></div>
-<div class="ach-toast" id="achToast" aria-live="polite"></div>
-<button type="button" class="nitro-btn" id="nitroBtn" hidden aria-label="Нитро">N</button>
-<button type="button" class="horn-btn" id="hornBtn" hidden>Бип</button>
-
-<div id="ui"></div>
-
-<noscript><p class="noscript">Для игры нужен JavaScript.</p></noscript>
+<p>Әсем Жол теперь здесь: <a href="https://gamemetric.dev/asem/">gamemetric.dev/asem/</a></p>
 </body>
 </html>
