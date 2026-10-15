@@ -118,10 +118,11 @@ async function shot(file, format = 'png') {
 }
 
 // the cover: the clean ?og frame with only the game's title on it
+// CrazyGames covers its own labels over the top-left ~40% x 20% of a cover, so the title stays out of it
 const COVER_CSS = {
-  landscape: '.og-title { left: 96px; top: 84px; } .og-title b { font-size: 176px; }',
-  portrait: '.og-title { left: 0; right: 0; top: 96px; justify-items: center; } .og-title b { font-size: 112px; text-align: center; }',
-  square: '.og-title { left: 0; right: 0; top: 70px; justify-items: center; } .og-title b { font-size: 112px; }',
+  landscape: '.og-title { left: auto; right: 96px; top: 84px; } .og-title b { font-size: 176px; }',
+  portrait: '.og-title { left: 0; right: 0; top: 270px; justify-items: center; } .og-title b { font-size: 112px; text-align: center; }',
+  square: '.og-title { left: 0; right: 0; top: 180px; justify-items: center; } .og-title b { font-size: 112px; }',
 };
 async function cover(map, kind, width, height, file) {
   await open(`/?debug&og&lang=en&map=${map}`, width, height);
