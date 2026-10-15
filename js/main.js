@@ -2070,6 +2070,9 @@ $('muteBtn').addEventListener('click', toggleSound);
 function applyLang() {
   document.documentElement.lang = getLang();
   document.title = t('title');
+  // search engines read the English page (?lang=en) after the script runs
+  const desc = document.querySelector('meta[name="description"]');
+  if (desc) desc.content = t('metaDesc');
   $('muteBtn').textContent = sound.on ? t('soundOn') : t('soundOff');
   $('pauseBtn').setAttribute('aria-label', t('pause'));
   $('musicBtn').setAttribute('aria-label', t('musicOn'));

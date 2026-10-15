@@ -2,7 +2,8 @@ import { store } from './util.js';
 
 const TEXT = {
   ru: {
-    title: 'Әсем Жол: ночная гонка по Алматы',
+    title: 'Әсем Жол — гонки на машинах по Алматы, играть онлайн бесплатно',
+    metaDesc: 'Бесплатные гонки на машинах в браузере: ночной Алматы, Медеу, Шымбулак, Капчагай, Чарын, Кольсай и новогодняя Астана. Сюжет из 7 глав, гараж, нитро, обгоны. Без скачивания, на телефоне и ПК.',
     tag: 'Гонка по Казахстану: ночной Алматы, Медеу, Шымбулак, Капчагай, Чарын, Кольсай и новогодняя Астана.',
     story: 'Сюжет',
     storySub: 'Глава {n} из {m}',
@@ -203,7 +204,8 @@ const TEXT = {
     gateFinish: 'ФИНИШ',
   },
   en: {
-    title: 'Asem Road: a night race through Almaty',
+    title: 'Asem Road — car racing game across Almaty, play free online',
+    metaDesc: 'Free car racing game in your browser: Almaty by night, Medeu, Shymbulak, Kapchagay, Charyn canyon, Kolsai and Astana on New Year\'s Eve. 7 story chapters, a garage, nitro and overtakes. No download, phone and PC.',
     tag: 'A race across Kazakhstan: Almaty by night, Medeu, Shymbulak, Kapchagay, Charyn, Kolsai and Astana on New Year\'s Eve.',
     story: 'Story',
     storySub: 'Chapter {n} of {m}',

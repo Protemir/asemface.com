@@ -1,2 +1,3 @@
 User-agent: *
 Allow: /
+Sitemap: https://asemface.com/sitemap.xml

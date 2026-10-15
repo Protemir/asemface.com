@@ -31,7 +31,8 @@ let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 html = html
   .split(/\r?\n/)
   .filter((l) => !/rel="(canonical|manifest|apple-touch-icon)"|name="(apple-mobile|mobile-web-app|theme-color|twitter:)|property="og:/.test(l))
-  .join('\n');
+  .join('\n')
+  .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/, '');
 const head = `<script src="${SDK[portal]}"></script>\n<script>window.ASEM_PORTAL = '${portal}';</script>\n`;
 if (!html.includes('<script type="module" src="js/main.js"></script>')) throw new Error('index.html changed: main.js tag not found');
 html = html.replace('<script type="module" src="js/main.js"></script>', head + '<script type="module" src="js/main.js"></script>');
