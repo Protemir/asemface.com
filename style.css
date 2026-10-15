@@ -362,6 +362,11 @@ button { font: inherit; color: inherit; }
 .story-title { font-size: 1.9rem; }
 .goal { font-size: 0.975rem; line-height: 1.45; }
 .goal b { color: var(--accent); }
+/* a phone on its side or a small game frame: the "Go" button must fit without scrolling */
+@media (max-height: 560px) {
+  .hero-img { display: none; }
+  .story-title { font-size: 1.5rem; }
+}
 
 /* leaderboard */
 

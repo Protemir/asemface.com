@@ -4,10 +4,11 @@ import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, setCameraBack, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG, CAR_W } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
+import { sound, audioInit, setSound, holdAudio, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 import { pulse } from './pulse.js';
+import { PORTAL, portalInit, portalLang, gameplay, happytime, onPortalMute } from './portal.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -866,6 +867,7 @@ function unlock(id) {
   if (progress.ach[id]) return;
   progress.ach[id] = Date.now();
   saveProgress();
+  if (id === 'story_done') happytime();
   achQueue.push(id);
   if (!achShowing) nextAch();
 }
@@ -1380,23 +1382,28 @@ const screenMain = screen(() => {
     b.addEventListener('click', onClick);
     return b;
   };
-  menu.append(
+  const items = [
     item(t('story'), doneAll ? t('storyDoneSub', { s: totalStars(), m: CHAPTERS.length * 3 }) : t('storySub', { n: nextCh + 1, m: CHAPTERS.length }), true, () => screenChapters()),
     item(t('free'), t('freeSub'), false, () => screenMaps()),
     item(t('garage'), t('car_' + currentCar().id), false, () => screenGarage()),
-    item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
+    PORTAL ? null : item(t('records'), progress.group ? t('groupMine', { g: progress.group }) : t('recordsSub'), false, () => screenScores()),
     item(t('achievements'), t('achSub', { n: ACH.filter((id) => progress.ach[id]).length, m: ACH.length }), false, () => screenAchievements()),
     item(t('settings'), levelOf() === 'calm' ? t('settingsSubCalm') : t('settingsSub', { l: t('level_' + levelOf()) }), false, () => screenSettings()),
-  );
+  ];
+  menu.append(...items.filter(Boolean));
   // phones: the whole screen for the road; iPhone Safari cannot do it for pages, the home screen icon can
-  if (isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
-  panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, isTouch && !installed && !canFull ? el('p', 'keys', t('fullIosSub')) : null, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), (() => {
+  if (!PORTAL && isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
+  panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, !PORTAL && isTouch && !installed && !canFull ? el('p', 'keys', t('fullIosSub')) : null, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), PORTAL ? null : (() => {
     const a = el('a', 'more', t('more'));
     a.href = 'https://gamemetric.dev/';
     return a;
   })(), (() => {
     // who made it and why
     const box = el('div', 'about');
+    if (PORTAL) {
+      box.append(el('p', '', t('aboutFun')));
+      return box;
+    }
     const link = el('a', '', 'temirlab.com');
     link.href = 'https://temirlab.com/';
     const made = el('p', '', t('madeBy') + ' ');
@@ -1683,7 +1690,7 @@ const screenScores = screen(() => {
 
 // sends a result after a race; asks for a name the first time
 function scoreBox(board, value) {
-  if (!online()) return null;
+  if (!online() || PORTAL) return null;
   const box = el('div', 'send-box');
   const status = el('p', 'note', '');
   const send = async (name) => {
@@ -1796,7 +1803,7 @@ function showFinish() {
   const r = g.result;
   const row = el('div', 'row');
   if (i + 1 < CHAPTERS.length) row.append(btn(t('next'), 'primary', () => toMenu(() => screenStory(i + 1))));
-  row.append(btn(t('again'), i + 1 < CHAPTERS.length ? '' : 'primary', () => startRace(g.last)), btn(t('share'), '', () => share()), btn(t('menu'), 'ghost', () => toMenu()));
+  row.append(...[btn(t('again'), i + 1 < CHAPTERS.length ? '' : 'primary', () => startRace(g.last)), PORTAL ? null : btn(t('share'), '', () => share()), btn(t('menu'), 'ghost', () => toMenu())].filter(Boolean));
   const note = el('p', 'note', '');
   note.id = 'shareNote';
   currentScreen = null;
@@ -1840,7 +1847,7 @@ function showOver() {
     saveProgress();
   }
   const row = el('div', 'row');
-  row.append(btn(t('again'), 'primary', () => startRace(g.last)), btn(t('share'), '', () => share()), btn(t('menu'), 'ghost', () => toMenu()));
+  row.append(...[btn(t('again'), 'primary', () => startRace(g.last)), PORTAL ? null : btn(t('share'), '', () => share()), btn(t('menu'), 'ghost', () => toMenu())].filter(Boolean));
   const note = el('p', 'note', '');
   note.id = 'shareNote';
   currentScreen = null;
@@ -1943,7 +1950,8 @@ window.addEventListener('keydown', (e) => {
     honk();
     return;
   }
-  if (e.code === 'KeyP' || e.code === 'Escape') {
+  // Escape also leaves the portal's full screen, so there it is left alone
+  if (e.code === 'KeyP' || (e.code === 'Escape' && !PORTAL)) {
     if (g.mode === 'paused') resume();
     else if (racing()) pause();
   } else if (e.code === 'KeyM') {
@@ -2037,7 +2045,7 @@ function toggleFull() {
   } catch { /* the browser said no */ }
 }
 const fullBtn = $('fullBtn');
-fullBtn.hidden = !canFull || installed;
+fullBtn.hidden = !canFull || installed || !!PORTAL;
 fullBtn.addEventListener('click', (e) => {
   e.currentTarget.blur();
   toggleFull();
@@ -2123,14 +2131,24 @@ function frame(now) {
   renderer.render(view);
   updateHud();
   engine(g.speed / BASE_MAX, ['play', 'countdown', 'ending', 'finish'].includes(g.mode), g.boosting, currentCar().electric);
+  gameplay(racingNow());
   requestAnimationFrame(frame);
 }
 
 setMap(mapOpen(progress.map) ? progress.map : 'city');
 flushPending();
 resize();
+if (PORTAL) {
+  await portalInit();
+  const lang = portalLang();
+  if (lang && !store.get('asem.lang', null) && !new URLSearchParams(location.search).get('lang')) setLang(lang);
+  onPortalMute((muted) => holdAudio(muted));
+}
 applyLang();
-toMenu();
+// a new player on a portal goes straight to the first chapter: one tap and the race starts
+const fresh = !Object.values(progress.stars).some(Boolean) && !Object.values(progress.best).some(Boolean);
+if (PORTAL && fresh) toMenu(() => screenStory(0));
+else toMenu();
 pulse('open');
 requestAnimationFrame(frame);
 

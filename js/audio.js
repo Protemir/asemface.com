@@ -1,11 +1,12 @@
 import { store } from './util.js';
 
-export const sound = { on: store.get('asem.sound', true), ctx: null, gain: null, o1: null, o2: null, filter: null };
+// held: a game portal asked for silence (its own mute), it wins over the in-game sound buttons
+export const sound = { on: store.get('asem.sound', true), held: false, ctx: null, gain: null, o1: null, o2: null, filter: null };
 
 export function audioInit() {
   if (sound.ctx) {
     // iOS leaves it 'interrupted' after a call or Siri
-    if (sound.ctx.state !== 'running' && !document.hidden) sound.ctx.resume().catch(() => {});
+    if (sound.ctx.state !== 'running' && !document.hidden && !sound.held) sound.ctx.resume().catch(() => {});
     return;
   }
   try {
@@ -26,9 +27,17 @@ export function audioInit() {
     o1.start();
     o2.start();
     Object.assign(sound, { ctx: c, gain, o1, o2, filter });
+    if (sound.held) c.suspend().catch(() => {});
   } catch {
     sound.ctx = null;
   }
+}
+
+export function holdAudio(on) {
+  sound.held = on;
+  if (!sound.ctx) return;
+  if (on) sound.ctx.suspend().catch(() => {});
+  else audioInit();
 }
 
 export function setSound(on) {
