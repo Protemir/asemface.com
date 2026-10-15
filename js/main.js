@@ -7,6 +7,7 @@ import { drawVehicle, VEHICLES } from './sprites.js';
 import { sound, audioInit, setSound, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
+import { pulse } from './pulse.js';
 
 const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
@@ -589,6 +590,7 @@ function update(dt) {
     if (g.mode === 'play' && g.timeLeft <= 0) {
       g.timeLeft = 0;
       g.mode = 'ending';
+      pulse(g.kind === 'story' ? 'fail' : 'timeout', g.pulseArg);
     }
   }
   if (g.mode === 'ending' && g.speed <= 0) {
@@ -1108,6 +1110,7 @@ function crash() {
 
 function finish() {
   g.mode = 'finish';
+  pulse('finish', g.pulseArg);
   g.endTimer = 1.5;
   const ideal = g.track.segments.length / 58;
   const stars = g.elapsed <= ideal * 1.15 ? 3 : g.elapsed <= ideal * 1.35 ? 2 : 1;
@@ -1130,6 +1133,8 @@ function startRace(opts) {
   g.kind = opts.kind;
   g.chapter = opts.chapter ?? 0;
   const mapId = g.kind === 'story' ? CHAPTERS[g.chapter].map : opts.mapId;
+  g.pulseArg = (g.kind === 'story' ? 'ch' + (g.chapter + 1) + ':' : '') + mapId;
+  pulse('start', g.pulseArg);
   progress.map = mapId;
   saveProgress();
   setMap(mapId);
@@ -2126,6 +2131,7 @@ flushPending();
 resize();
 applyLang();
 toMenu();
+pulse('open');
 requestAnimationFrame(frame);
 
 // ?og renders a clean frame for the link preview image (og.png)

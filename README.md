@@ -24,4 +24,6 @@ Code: `js/maps.js` holds the maps, chapters, friends and cars, `js/track.js` the
 
 Run it with any static server, for example `npx serve .` (modules do not load from `file://`). `?debug` exposes `window.__asem` for stepping the game by hand, `?og&map=kapchagay` renders the clean frame used for `og.png`.
 
+Play counter: `js/pulse.js` sends anonymous events (open, race started, finished or out of time) to a small Cloudflare Worker shared with gamemetric.dev (its code is `stats/` in that repo). No cookies, no names, no IP addresses; a random id in localStorage tells new players from returning ones. Open the game once with `?nopulse` to stop counting your device.
+
 Made by [TEMIRLAB](https://temirlab.com/) to lift your mood. All characters and events are fictional; any resemblance is coincidental.
