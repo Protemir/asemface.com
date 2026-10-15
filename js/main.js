@@ -1397,7 +1397,7 @@ const screenMain = screen(() => {
   menu.append(...items.filter(Boolean));
   // phones: the whole screen for the road; iPhone Safari cannot do it for pages, the home screen icon can
   if (!PORTAL && isTouch && !installed && canFull) menu.append(isFull() ? item(t('fullExit'), t('fullExitSub'), false, toggleFull) : item(t('full'), t('fullSub'), false, toggleFull));
-  panel('main', top, el('h1', '', 'Әсем Жол'), el('p', 'tag', t('tag')), menu, !PORTAL && isTouch && !installed && !canFull ? el('p', 'keys', t('fullIosSub')) : null, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), PORTAL ? null : (() => {
+  panel('main', top, el('h1', '', PORTAL ? 'Asem Road' : 'Әсем Жол'), el('p', 'tag', t('tag')), menu, !PORTAL && isTouch && !installed && !canFull ? el('p', 'keys', t('fullIosSub')) : null, el('p', 'keys', isTouch ? t('keysTouch') : t('keys')), PORTAL ? null : (() => {
     const a = el('a', 'more', t('more'));
     a.href = 'https://gamemetric.dev/';
     return a;

@@ -35,7 +35,8 @@ html = html
   .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/, '');
 const head = `<script src="${SDK[portal]}"></script>\n<script>window.ASEM_PORTAL = '${portal}';</script>\n`;
 if (!html.includes('<script type="module" src="js/main.js"></script>')) throw new Error('index.html changed: main.js tag not found');
-html = html.replace('<script type="module" src="js/main.js"></script>', head + '<script type="module" src="js/main.js"></script>');
+// boot.js waits for the SDK (saves go to its Data module), then loads main.js
+html = html.replace('<script type="module" src="js/main.js"></script>', head + '<script type="module" src="js/boot.js"></script>');
 fs.writeFileSync(path.join(out, 'index.html'), html);
 
 // every file must be referenced by a relative path

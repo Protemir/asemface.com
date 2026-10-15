@@ -10,14 +10,8 @@ let playing = false;
 
 export async function portalInit() {
   if (PORTAL !== 'crazygames') return;
-  const s = window.CrazyGames && window.CrazyGames.SDK;
-  if (!s) return;
-  try {
-    await s.init();
-    if (s.environment !== 'disabled') sdk = s;
-  } catch {
-    sdk = null;
-  }
+  // js/boot.js has already started the SDK
+  sdk = (await window.ASEM_SDK) || null;
 }
 
 // 'ru' for players from the region, 'en' for everyone else, null if the portal does not say

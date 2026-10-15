@@ -22,7 +22,7 @@ if (q.has('pulse')) local('pulse.off', null);
 // portal builds have their own numbers and their own privacy rules
 const off = !!window.ASEM_PORTAL || local('pulse.off') === '1' || navigator.webdriver || location.protocol === 'file:';
 
-let id = local('pulse.id');
+let id = off ? 'x' : local('pulse.id');
 if (!id) {
   id = Math.random().toString(36).slice(2, 12).padEnd(8, '0');
   local('pulse.id', id);

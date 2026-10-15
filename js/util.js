@@ -39,17 +39,20 @@ export function rgba(c, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+// on a portal (js/boot.js) saves go to its Data module, which has the same getItem/setItem
+const box = () => window.ASEM_DATA || localStorage;
+
 export const store = {
   get(key, fallback) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = box().getItem(key);
       return raw == null ? fallback : JSON.parse(raw);
     } catch {
       return fallback;
     }
   },
   set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+    try { box().setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
   },
 };
 
