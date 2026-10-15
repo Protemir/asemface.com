@@ -3,12 +3,39 @@ import { store } from './util.js';
 // held: a game portal asked for silence (its own mute), it wins over the in-game sound buttons
 export const sound = { on: store.get('asem.sound', true), held: false, ctx: null, gain: null, o1: null, o2: null, filter: null };
 
+// iPhone: Safari mutes web audio when the ring/silent switch is on; the "playback" session
+// (Safari 17+) lets the game be heard like a video. Set right before the first sound.
+function playbackSession() {
+  try {
+    if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback';
+  } catch {
+    /* older browsers */
+  }
+}
+
+// iOS only really starts a context that has played something inside a tap
+function kick(c) {
+  try {
+    const s = c.createBufferSource();
+    s.buffer = c.createBuffer(1, 1, 22050);
+    s.connect(c.destination);
+    s.start(0);
+  } catch {
+    /* nothing to kick */
+  }
+}
+
 export function audioInit() {
   if (sound.ctx) {
     // iOS leaves it 'interrupted' after a call or Siri
-    if (sound.ctx.state !== 'running' && !document.hidden && !sound.held) sound.ctx.resume().catch(() => {});
+    if (sound.ctx.state !== 'running' && !document.hidden && !sound.held) {
+      playbackSession();
+      sound.ctx.resume().catch(() => {});
+      kick(sound.ctx);
+    }
     return;
   }
+  playbackSession();
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     const c = new AC();
@@ -27,6 +54,7 @@ export function audioInit() {
     o1.start();
     o2.start();
     Object.assign(sound, { ctx: c, gain, o1, o2, filter });
+    kick(c);
     if (sound.held) c.suspend().catch(() => {});
   } catch {
     sound.ctx = null;

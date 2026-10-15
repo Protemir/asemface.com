@@ -1240,9 +1240,12 @@ function unlockAudio() {
   playMusic(g.map.id, racingNow() ? 1 : 0);
 }
 const racingNow = () => ['countdown', 'play', 'ending', 'finish'].includes(g.mode);
-window.addEventListener('pointerdown', unlockAudio, { once: true });
-// wake the sound up again after the phone suspended it
-window.addEventListener('pointerdown', () => audioUnlocked && audioInit());
+// iOS counts only touchend and click as a tap that may start sound, not pointerdown
+for (const type of ['pointerdown', 'touchend', 'click']) {
+  window.addEventListener(type, unlockAudio, { once: true });
+  // wake the sound up again after the phone suspended it
+  window.addEventListener(type, () => audioUnlocked && audioInit());
+}
 window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ---------- HUD ----------
