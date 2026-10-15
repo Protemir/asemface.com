@@ -4,7 +4,7 @@ import { MAPS, CHAPTERS, CARS, PAINTS, FRIENDS, mapById } from './maps.js';
 import { Track, SEG, PLAYER_Z, setCameraBack, PLAYER_W, BASE_MAX, KMH_AT_MAX, ROAD_W, GATE_AT, M_PER_SEG, CAR_W } from './track.js';
 import { Renderer } from './render.js';
 import { drawVehicle, VEHICLES } from './sprites.js';
-import { sound, audioInit, setSound, holdAudio, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
+import { sound, media, audioInit, setSound, holdAudio, engine, beep, noise, fanfare, scream, bonk, horn, whistle, bleat, weddingHorn, cucaracha, splash, squeak, pops, crunch, neigh } from './audio.js';
 import { music, playMusic, setMusic, pauseMusic } from './music.js';
 import { online, getBoard, submit, flushPending, newGroupCode, boardId } from './scores.js';
 import { pulse } from './pulse.js';
@@ -2161,6 +2161,25 @@ if (PORTAL && fresh) toMenu(() => screenStory(0));
 else toMenu();
 pulse('open');
 requestAnimationFrame(frame);
+
+// ?audiodebug: the audio state on screen, to check sound on a phone without devtools
+if (new URLSearchParams(location.search).has('audiodebug')) {
+  const box = document.createElement('pre');
+  box.style.cssText = 'position:fixed;left:4px;bottom:4px;z-index:99999;margin:0;padding:6px 8px;font:11px/1.35 monospace;color:#0f0;background:rgba(0,0,0,.75);pointer-events:none;white-space:pre-wrap;max-width:96vw';
+  document.body.append(box);
+  setInterval(() => {
+    const c = sound.ctx;
+    box.textContent = [
+      'ctx: ' + (c ? c.state + ' ' + c.sampleRate + ' Hz' : 'none (tap the screen)'),
+      'sound.on: ' + sound.on + (sound.held !== undefined ? '  held: ' + sound.held : ''),
+      'audioSession: ' + (navigator.audioSession ? navigator.audioSession.type : 'no API'),
+      'silent track: ' + (media.el ? (media.el.paused ? 'paused' : 'playing') : 'none') + (media.error ? ' (' + media.error + ')' : ''),
+      'taps seen: ' + (window.__taps || 0),
+      navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 120),
+    ].join('\n');
+  }, 400);
+  for (const t of ['pointerdown', 'touchend', 'click']) window.addEventListener(t, () => (window.__taps = (window.__taps || 0) + 1));
+}
 
 // ?og renders a clean frame for the link preview image (og.png)
 const params = new URLSearchParams(location.search);
