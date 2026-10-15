@@ -414,7 +414,11 @@ function update(dt) {
 
   const driving = g.mode === 'play';
   let blocker = null;
-  if (driving) g.steer = input.left && !input.right ? -1 : input.right && !input.left ? 1 : 0;
+  // ?debug can let the menu autopilot drive a real race (tools/covers.mjs films the preview video that way)
+  if (driving && g.autoDrive) {
+    blocker = autopilot(T, pSeg);
+    input.brake = !!(blocker && g.speed > blocker.speed);
+  } else if (driving) g.steer = input.left && !input.right ? -1 : input.right && !input.left ? 1 : 0;
   else if (g.mode === 'menu') blocker = autopilot(T, pSeg);
   else g.steer = 0;
   // black ice: the wheel barely answers and the bends push the car out
